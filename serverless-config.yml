@@ -1,0 +1,2 @@
+role: arn:aws:iam::874957933250:role/serverless-app-role
+productsTable: products_rey

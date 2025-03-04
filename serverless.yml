@@ -4,7 +4,9 @@ service: python-serverless-rey
 provider:
   name: aws
   runtime: python3.12
-  role: ${env:AWS_IAM_ROLE}
+  role: ${file(./serverless-config.yml):role}  # This reads the IAM role from the config file
+  environment:
+    PRODUCTS_TABLE: ${file(./serverless-config.yml):productsTable}
 
 functions:
   createOneProduct:
