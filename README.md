@@ -99,4 +99,5 @@ Running the above will automatically add `serverless-python-requirements` to `pl
 
 ### PAGES
 /products (GET, POST)
+
 /product_modification (GET, PUT, DELETE)
