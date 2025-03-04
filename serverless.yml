@@ -4,9 +4,17 @@ service: python-serverless-rey
 provider:
   name: aws
   runtime: python3.12
-  role: ${env:AWS_IAM_ROLE}
+  role: arn:aws:iam::874957933250:role/serverless-app-role
+  environment:
+    PRODUCTS_TABLE: ${env:PRODUCTS_TABLE, 'products_rey'}  # Use environment variable
 
 functions:
+  hello:
+    handler: handlers/helloHandler.hello_handler
+    events:
+      - httpApi:
+          path: /
+          method: get
   createOneProduct:
     handler: handlers/productHandler.create_one_product
     events:
@@ -49,3 +57,64 @@ functions:
           rules:
             - prefix: for_delete/
           existing: true
+
+custom:
+  prune:
+    automatic: true
+    number: 3  # Keep only the latest 3 deployments
+  serverless-offline:
+    httpPort: 3000  # Enable local testing
+  exclude:
+    - .git/**
+    - .serverless/**
+    - node_modules/**
+    - tests/**
+    - docs/**
+
+plugins:
+  - serverless-prune-plugin
+  - serverless-offline  # Added for local testing
+
+resources:
+  Resources:
+    ProductCreateLogGroup:
+        Type: AWS::Logs::LogGroup
+        Properties:
+          LogGroupName: /aws/lambda/python-serverless-rey-create-product
+          RetentionInDays: 14  # Keep logs for 14 days
+    ProductCreateMetricFilter:
+      Type: AWS::Logs::MetricFilter
+      Properties:
+        LogGroupName: !Ref ProductCreateLogGroup
+        FilterPattern: '{ $.message = "Product created successfully" }'
+        MetricTransformations:
+          - MetricNamespace: "ServerlessApp"
+            MetricName: "ProductCreateCount"
+            MetricValue: "1"
+    ProductsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${env:PRODUCTS_TABLE, 'products_rey_cloudformation'}
+        AttributeDefinitions:
+          - AttributeName: product_id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: product_id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+        StreamSpecification:
+          StreamViewType: NEW_IMAGE
+    ProductsQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: products-queue-rey-sqs-copy
+        VisibilityTimeout: 30
+        MessageRetentionPeriod: 86400  # Messages are kept for 1 day
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt ProductsDeadLetterQueue.Arn
+          maxReceiveCount: 5
+    ProductsDeadLetterQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: products-queue-rey-dlq
+        MessageRetentionPeriod: 1209600  # Messages kept for 14 days

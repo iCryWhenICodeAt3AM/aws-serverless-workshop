@@ -1,4 +1,4 @@
-# Distribution / packaging
+# Ignore Python packaging
 .Python
 env/
 build/
@@ -16,5 +16,11 @@ var/
 .installed.cfg
 *.egg
 
-# Serverless directories
-.serverless
+# Ignore Node.js dependencies
+node_modules/
+
+# Ignore Serverless directories
+.serverless/
+
+# Ignore Serverless configuration files
+serverless-config.yml
