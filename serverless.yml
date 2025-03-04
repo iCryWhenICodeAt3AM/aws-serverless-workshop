@@ -4,7 +4,7 @@ service: python-serverless-rey
 provider:
   name: aws
   runtime: python3.12
-  role: arn:aws:iam::874957933250:role/serverless-app-role
+  role: ${env:AWS_IAM_ROLE}
   environment:
     PRODUCTS_TABLE: products_rey
 
