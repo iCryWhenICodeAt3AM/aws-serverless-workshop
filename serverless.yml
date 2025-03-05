@@ -4,18 +4,12 @@ service: python-serverless-rey
 provider:
   name: aws
   runtime: python3.12
-<<<<<<< HEAD
   role: arn:aws:iam::272898481162:role/serverless-app-role
   tracing:
     lambda: true  # Enable X-Ray tracing for Lambda
     apiGateway: true  # Enable tracing for API Gateway
   environment:
     PRODUCTS_TABLE: ${env:PRODUCTS_TABLE, 'products_rey'}  # Use environment variable
-=======
-  role: ${file(./serverless-config.yml):role}  # This reads the IAM role from the config file
-  environment:
-    PRODUCTS_TABLE: ${file(./serverless-config.yml):productsTable}
->>>>>>> main
 
 functions:
   hello:
