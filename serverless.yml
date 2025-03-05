@@ -5,6 +5,9 @@ provider:
   name: aws
   runtime: python3.12
   role: arn:aws:iam::874957933250:role/serverless-app-role
+  tracing:
+    lambda: true  # Enable X-Ray tracing for Lambda
+    apiGateway: true  # Enable tracing for API Gateway
   environment:
     PRODUCTS_TABLE: ${env:PRODUCTS_TABLE, 'products_rey'}  # Use environment variable
 

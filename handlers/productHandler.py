@@ -1,4 +1,3 @@
-# handlers/productHandler.py
 import json
 from decimal import Decimal
 from models.productModel import (
