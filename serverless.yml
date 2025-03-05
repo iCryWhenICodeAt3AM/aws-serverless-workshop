@@ -4,7 +4,7 @@ service: python-serverless-rey
 provider:
   name: aws
   runtime: python3.12
-  role: arn:aws:iam::874957933250:role/serverless-app-role
+  role: arn:aws:iam::272898481162:role/serverless-app-role
   tracing:
     lambda: true  # Enable X-Ray tracing for Lambda
     apiGateway: true  # Enable tracing for API Gateway
@@ -46,7 +46,7 @@ functions:
     handler: handlers/productBatchHandler.batch_create_products_handler
     events:
       - s3:
-          bucket: products-s3bucket-rey
+          bucket: products-s3-rey
           event: s3:ObjectCreated:*
           rules:
             - prefix: for_create/
@@ -55,7 +55,7 @@ functions:
     handler: handlers/productBatchHandler.batch_delete_products_handler
     events:
       - s3:
-          bucket: products-s3bucket-rey
+          bucket: products-s3-rey
           event: s3:ObjectCreated:*
           rules:
             - prefix: for_delete/
@@ -80,24 +80,24 @@ plugins:
 
 resources:
   Resources:
-    ProductCreateLogGroup:
-        Type: AWS::Logs::LogGroup
-        Properties:
-          LogGroupName: /aws/lambda/python-serverless-rey-create-product
-          RetentionInDays: 14  # Keep logs for 14 days
-    ProductCreateMetricFilter:
-      Type: AWS::Logs::MetricFilter
-      Properties:
-        LogGroupName: !Ref ProductCreateLogGroup
-        FilterPattern: '{ $.message = "Product created successfully" }'
-        MetricTransformations:
-          - MetricNamespace: "ServerlessApp"
-            MetricName: "ProductCreateCount"
-            MetricValue: "1"
+    # ProductCreateLogGroup:
+    #     Type: AWS::Logs::LogGroup
+    #     Properties:
+    #       LogGroupName: /aws/lambda/python-serverless-rey-create-product
+    #       RetentionInDays: 14  # Keep logs for 14 days
+    # ProductCreateMetricFilter:
+    #   Type: AWS::Logs::MetricFilter
+    #   Properties:
+    #     LogGroupName: !Ref ProductCreateLogGroup
+    #     FilterPattern: '{ $.message = "Product created successfully" }'
+    #     MetricTransformations:
+    #       - MetricNamespace: "ServerlessApp"
+    #         MetricName: "ProductCreateCount"
+    #         MetricValue: "1"
     ProductsTable:
       Type: AWS::DynamoDB::Table
       Properties:
-        TableName: ${env:PRODUCTS_TABLE, 'products_rey_cloudformation'}
+        TableName: ${env:PRODUCTS_TABLE, 'products_rey'}
         AttributeDefinitions:
           - AttributeName: product_id
             AttributeType: S
@@ -110,7 +110,7 @@ resources:
     ProductsQueue:
       Type: AWS::SQS::Queue
       Properties:
-        QueueName: products-queue-rey-sqs-copy
+        QueueName: products-queue-rey-sqs
         VisibilityTimeout: 30
         MessageRetentionPeriod: 86400  # Messages are kept for 1 day
         RedrivePolicy:
