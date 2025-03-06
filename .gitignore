@@ -17,7 +17,7 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
-
+.env
 # Ignore Node.js dependencies
 node_modules/
 
