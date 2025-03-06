@@ -1,6 +1,7 @@
 # Ignore Python packaging
 .Python
 env/
+venv/
 build/
 develop-eggs/
 dist/
