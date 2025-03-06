@@ -1,6 +1,7 @@
 import json
 import csv
 from decimal import Decimal
+import boto3 #type: ignore
 from gateways import dynamodb_gateway, s3_gateway, sqs_gateway
 from utils.aws_resources import logger, DecimalEncoder
 
@@ -10,6 +11,7 @@ class ProductModel:
         self.s3_gateway = s3_gateway
         self.sqs_gateway = sqs_gateway
         self.logger = logger
+        self.cloudwatch_logs = boto3.client('logs')
 
     def create_product(self, event):
         """Create a product."""
@@ -17,13 +19,8 @@ class ProductModel:
         if not body or "product_id" not in body:
             return {"statusCode": 400, "body": json.dumps({"message": "Invalid input: Missing product_id"})}
         self.logger.info(f"Creating product: {body}")
-        self.logger.info(f"Product created successfully!")
-
+        self.logger.info(json.dumps({"message": "Product created!"}))
         self.dynamodb_gateway.save_product(body)
-        try:
-            self.sqs_gateway.send_sqs_message("products-queue-rey-sqs", f"Function: Create a Product! Item: {body}")
-        except Exception:
-            return {"statusCode": 500, "body": json.dumps({"message": "Error sending message to SQS"})}
         return {"statusCode": 200, "body": json.dumps({"message": "Product created successfully", "product": body}, cls=DecimalEncoder)}
 
     def get_all_products(self):
