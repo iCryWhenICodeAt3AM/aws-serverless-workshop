@@ -10,6 +10,7 @@ provider:
     apiGateway: true  # Enable tracing for API Gateway
   environment:
     PRODUCTS_TABLE: ${env:PRODUCTS_TABLE}  # Use environment variable
+    PRODUCTS_INVENTORY_TABLE: ${env:PRODUCTS_INVENTORY_TABLE}  # Use environment variable
 
 functions:
   hello:
@@ -24,6 +25,7 @@ functions:
       - httpApi:
           path: /products
           method: post
+
   getAllProducts:
     handler: handlers/productHandler.get_all_products_handler
     events:
@@ -111,3 +113,13 @@ resources:
       Properties:
         QueueName: products-queue-rey-dlq
         MessageRetentionPeriod: 1209600  # Messages kept for 14 days
+    ProductCreationEventRule:
+      Type: AWS::Events::Rule
+      Properties:
+        EventBusName: custom-rey-event-bus
+        EventPattern:
+          source:
+            - "com.rey.products"
+          detail-type:
+            - "create_product"
+        State: ENABLED

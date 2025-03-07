@@ -1,12 +1,17 @@
 import json
 from decimal import Decimal
 from models.productModel import ProductModel
+from utils.event_bridge import submit_product_creation_event
 
 product_model = ProductModel()
 
 def create_one_product(event, context):
     """Handler for creating a product."""
-    return product_model.create_product(event)
+    response = product_model.create_product(event)
+    if response["statusCode"] == 200:
+        product = json.loads(response["body"])["product"]
+        submit_product_creation_event(product)
+    return response
 
 def get_all_products_handler(event, context):
     """Handler for retrieving all products."""
