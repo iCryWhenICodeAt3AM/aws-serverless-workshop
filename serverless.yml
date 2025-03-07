@@ -9,7 +9,8 @@ provider:
     lambda: true  # Enable X-Ray tracing for Lambda
     apiGateway: true  # Enable tracing for API Gateway
   environment:
-    PRODUCTS_TABLE: ${env:PRODUCTS_TABLE, 'products_rey'}  # Use environment variable
+    PRODUCTS_TABLE: ${env:PRODUCTS_TABLE}  # Use environment variable
+    PRODUCTS_INVENTORY_TABLE: ${env:PRODUCTS_INVENTORY_TABLE}  # Use environment variable
 
 functions:
   hello:
@@ -24,6 +25,7 @@ functions:
       - httpApi:
           path: /products
           method: post
+
   getAllProducts:
     handler: handlers/productHandler.get_all_products_handler
     events:
@@ -42,6 +44,9 @@ functions:
       - httpApi:
           path: /product_modification
           method: delete
+      - httpApi:
+          path: /product_modification
+          method: post
   batchCreateProducts:
     handler: handlers/productBatchHandler.batch_create_products_handler
     events:
@@ -77,27 +82,14 @@ custom:
 plugins:
   - serverless-prune-plugin
   - serverless-offline  # Added for local testing
+  - serverless-dotenv-plugin  # Load environment variables from .env
 
 resources:
   Resources:
-    # ProductCreateLogGroup:
-    #     Type: AWS::Logs::LogGroup
-    #     Properties:
-    #       LogGroupName: /aws/lambda/python-serverless-rey-create-product
-    #       RetentionInDays: 14  # Keep logs for 14 days
-    # ProductCreateMetricFilter:
-    #   Type: AWS::Logs::MetricFilter
-    #   Properties:
-    #     LogGroupName: !Ref ProductCreateLogGroup
-    #     FilterPattern: '{ $.message = "Product created successfully" }'
-    #     MetricTransformations:
-    #       - MetricNamespace: "ServerlessApp"
-    #         MetricName: "ProductCreateCount"
-    #         MetricValue: "1"
     ProductsTable:
       Type: AWS::DynamoDB::Table
       Properties:
-        TableName: ${env:PRODUCTS_TABLE, 'products_rey'}
+        TableName: ${env:PRODUCTS_TABLE}
         AttributeDefinitions:
           - AttributeName: product_id
             AttributeType: S
@@ -121,3 +113,13 @@ resources:
       Properties:
         QueueName: products-queue-rey-dlq
         MessageRetentionPeriod: 1209600  # Messages kept for 14 days
+    ProductCreationEventRule:
+      Type: AWS::Events::Rule
+      Properties:
+        EventBusName: custom-rey-event-bus
+        EventPattern:
+          source:
+            - "com.rey.products"
+          detail-type:
+            - "create_product"
+        State: ENABLED

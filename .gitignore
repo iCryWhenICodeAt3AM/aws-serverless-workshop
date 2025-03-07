@@ -2,6 +2,7 @@
 .Python
 env/
 venv/
+.venv/
 build/
 develop-eggs/
 dist/
@@ -17,7 +18,6 @@ var/
 .installed.cfg
 *.egg
 .env
-
 # Ignore Node.js dependencies
 node_modules/
 

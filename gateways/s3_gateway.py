@@ -1,5 +1,5 @@
 import urllib.parse
-from utils.aws_resources import S3_CLIENT, logger
+from utils.aws_resources import aws_resources, logger
 
 def download_file_from_s3(event, folder_prefix):
     """
@@ -14,5 +14,5 @@ def download_file_from_s3(event, folder_prefix):
         return None, None, {"statusCode": 400, "body": "Invalid file location"}
 
     local_path = f"/tmp/{key.split('/')[-1]}"
-    S3_CLIENT.download_file(bucket, key, local_path)
+    aws_resources.s3_client.download_file(bucket, key, local_path)
     return bucket, local_path, None

@@ -1,24 +1,30 @@
 import json
 import boto3 #type: ignore
 import logging
+import os
 from decimal import Decimal
 
-# Set up logging
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+class AWSResources:
+    def __init__(self, region_name="us-east-2"):
+        self.dynamodb = boto3.resource("dynamodb", region_name=region_name)
+        self.s3_client = boto3.client("s3", region_name=region_name)
+        self.sqs = boto3.resource("sqs", region_name=region_name)
+        self.products_table = self.dynamodb.Table(os.getenv("PRODUCTS_TABLE"))
+        self.product_inventory_table = self.dynamodb.Table(os.getenv("PRODUCTS_INVENTORY_TABLE"))
 
-# Initialize AWS resources
-DYNAMODB = boto3.resource("dynamodb", region_name="us-east-2")
-S3_CLIENT = boto3.client("s3", region_name="us-east-2")
-SQS = boto3.resource("sqs", region_name="us-east-2")
+class Logger:
+    def __init__(self):
+        self.logger = logging.getLogger()
+        self.logger.setLevel(logging.INFO)
 
-# Define DynamoDB table
-PRODUCTS_TABLE_NAME = "products_rey"
-PRODUCTS_TABLE = DYNAMODB.Table(PRODUCTS_TABLE_NAME)
+    def get_logger(self):
+        return self.logger
 
-# Custom JSON encoder to handle Decimal values
 class DecimalEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, Decimal):
             return str(obj)
         return super().default(obj)
+
+aws_resources = AWSResources()
+logger = Logger().get_logger()
