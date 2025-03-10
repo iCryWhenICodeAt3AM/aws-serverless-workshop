@@ -65,6 +65,15 @@ functions:
           rules:
             - prefix: for_delete/
           existing: true
+  processSqsMessage:
+    handler: handlers/sqsHandler.process_sqs_message
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt:
+              - ProductsQueue
+              - Arn
+          batchSize: 1
 
 custom:
   prune:

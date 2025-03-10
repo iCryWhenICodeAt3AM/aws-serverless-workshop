@@ -21,6 +21,10 @@ class ProductModel:
         self.logger.info(f"Creating product: {body}")
         self.logger.info(json.dumps({"message": "Product created!"}))
         self.dynamodb_gateway.save_product(body)
+        try:
+            self.sqs_gateway.send_sqs_message("products-queue-rey-sqs", f"Function: Get All Products! Items: {body}")
+        except Exception:
+            return {"statusCode": 500, "body": json.dumps({"message": "Error sending message to SQS"})}
         return {"statusCode": 200, "body": json.dumps({"message": "Product created successfully", "product": body}, cls=DecimalEncoder)}
 
     def get_all_products(self):
@@ -113,11 +117,6 @@ class ProductModel:
         body = json.loads(event.get("body", "{}"), parse_float=Decimal)
         if not body or "product_id" not in body or "quantity" not in body:
             return {"statusCode": 400, "body": json.dumps({"message": "Invalid input: Missing product_id or quantity"})}
-        
-        # Update product quantity
-        result = self.dynamodb_gateway.update_product_quantity(body["product_id"], body["quantity"])
-        if result and result.get("statusCode") == 404:
-            return result
         
         # Save inventory record only if product exists
         self.dynamodb_gateway.save_product_inventory(body)
