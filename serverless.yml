@@ -74,6 +74,12 @@ functions:
               - ProductsQueue
               - Arn
           batchSize: 1
+  viewProduct:
+    handler: handlers/productHandler.view_product_handler
+    events:
+      - httpApi:
+          path: /API/product
+          method: get
 
 custom:
   prune:

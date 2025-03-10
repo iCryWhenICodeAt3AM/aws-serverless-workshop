@@ -38,3 +38,16 @@ def product_modification(event, context):
     
     action = actions.get(http_method, lambda: {"statusCode": 400, "body": json.dumps({"message": "Invalid action or HTTP method"})})
     return action()
+
+def view_product_handler(event, context):
+    """Handler for viewing a product by product_id header."""
+    product_id = event.get("headers", {}).get("product_id")
+    if not product_id:
+        return {
+            "statusCode": 400,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"message": "Missing product_id header"})
+        }
+    response = product_model.view_product(product_id)
+    response["headers"] = {"Content-Type": "application/json"}
+    return response

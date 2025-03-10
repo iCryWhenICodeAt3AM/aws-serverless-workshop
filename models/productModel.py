@@ -39,15 +39,31 @@ class ProductModel:
     def view_product(self, product_id):
         """Retrieve a single product by ID."""
         if not product_id:
-            return {"statusCode": 400, "body": json.dumps({"message": "Missing product_id"})}
+            return {
+                "statusCode": 400,
+                "headers": {"Content-Type": "application/json"},
+                "body": json.dumps({"message": "Missing product_id"})
+            }
         item = self.dynamodb_gateway.get_product(product_id)
         if not item:
-            return {"statusCode": 404, "body": json.dumps({"message": "Product not found"})}
+            return {
+                "statusCode": 404,
+                "headers": {"Content-Type": "application/json"},
+                "body": json.dumps({"message": "Product not found"})
+            }
         try:
             self.sqs_gateway.send_sqs_message("products-queue-rey-sqs", f"Function: Get a Product! {product_id}")
         except Exception:
-            return {"statusCode": 500, "body": json.dumps({"message": "Error sending message to SQS"})}
-        return {"statusCode": 200, "body": json.dumps(item, cls=DecimalEncoder)}
+            return {
+                "statusCode": 500,
+                "headers": {"Content-Type": "application/json"},
+                "body": json.dumps({"message": "Error sending message to SQS"})
+            }
+        return {
+            "statusCode": 200,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps(item, cls=DecimalEncoder)
+        }
 
     def edit_product(self, data):
         """Edit an existing product."""
