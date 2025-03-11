@@ -11,6 +11,7 @@ class AWSResources:
         self.sqs = boto3.resource("sqs", region_name=region_name)
         self.products_table = self.dynamodb.Table(os.getenv("PRODUCTS_TABLE"))
         self.product_inventory_table = self.dynamodb.Table(os.getenv("PRODUCTS_INVENTORY_TABLE"))
+        self.product_name_table = self.dynamodb.Table(os.getenv("PRODUCT_NAME_TABLE"))
 
 class Logger:
     def __init__(self):

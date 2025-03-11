@@ -1,7 +1,9 @@
 import json
+import csv
 from decimal import Decimal
 from models.productModel import ProductModel
 from utils.event_bridge import submit_product_creation_event
+import boto3 #type: ignore
 
 product_model = ProductModel()
 
@@ -39,15 +41,62 @@ def product_modification(event, context):
     action = actions.get(http_method, lambda: {"statusCode": 400, "body": json.dumps({"message": "Invalid action or HTTP method"})})
     return action()
 
+
+#-----------REST API HANDLERS FOR FRESH CHAT---------------- 
+
 def view_product_handler(event, context):
-    """Handler for viewing a product by product_id header."""
-    product_id = event.get("headers", {}).get("product_id")
-    if not product_id:
+    """Handler for viewing a product by product_id or product_name header."""
+    headers = event.get("headers", {})
+    product_id = headers.get("product_id")
+    product_name = headers.get("product_name")
+
+    if not product_id and not product_name:
         return {
             "statusCode": 400,
             "headers": {"Content-Type": "application/json"},
-            "body": json.dumps({"message": "Missing product_id header"})
+            "body": json.dumps({"message": "Missing product_id or product_name header"})
         }
+
+    if product_name:
+        try:
+            # Search the product_name_table for the product ID
+            product_name_item = product_model.dynamodb_gateway.get_product_name(product_name)
+            if product_name_item:
+                product_id = product_name_item["product_id"]
+            else:
+                return {
+                    "statusCode": 404,
+                    "headers": {"Content-Type": "application/json"},
+                    "body": json.dumps({"message": "Product name not found"})
+                }
+        except Exception as e:
+            return {
+                "statusCode": 500,
+                "headers": {"Content-Type": "application/json"},
+                "body": json.dumps({"message": f"Error searching product name table: {str(e)}"})
+            }
+
     response = product_model.view_product(product_id)
     response["headers"] = {"Content-Type": "application/json"}
     return response
+
+def add_product_inventory_handler(event, context):
+    """Handler for adding inventory to a product."""
+    body = json.loads(event.get("body", "{}"), parse_float=Decimal)
+    product_id = body.get("product_id")
+    quantity = body.get("quantity")
+    
+    if not product_id or quantity is None:
+        return {
+            "statusCode": 400,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"message": "Invalid input: Missing product_id or quantity"})
+        }
+    
+    response = product_model.update_product_quantity(product_id, quantity)
+    response["headers"] = {"Content-Type": "application/json"}
+    return response
+
+def get_all_product_names_handler(event, context):
+    """Handler for retrieving all product names."""
+    return product_model.get_all_product_names()

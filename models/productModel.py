@@ -16,16 +16,28 @@ class ProductModel:
     def create_product(self, event):
         """Create a product."""
         body = json.loads(event.get("body", "{}"), parse_float=Decimal)
-        if not body or "product_id" not in body:
-            return {"statusCode": 400, "body": json.dumps({"message": "Invalid input: Missing product_id"})}
+        if not body or "product_id" not in body or "product_name" not in body:
+            return {"statusCode": 400, "body": json.dumps({"message": "Invalid input: Missing product_id or product_name"})}
         self.logger.info(f"Creating product: {body}")
         self.logger.info(json.dumps({"message": "Product created!"}))
         self.dynamodb_gateway.save_product(body)
+        
+        # Add product name and ID to the product_name_table
+        self.dynamodb_gateway.save_product_name({"product_name": body["product_name"], "product_id": body["product_id"]})
+        
         try:
             self.sqs_gateway.send_sqs_message("products-queue-rey-sqs", f"Function: Get All Products! Items: {body}")
         except Exception:
-            return {"statusCode": 500, "body": json.dumps({"message": "Error sending message to SQS"})}
-        return {"statusCode": 200, "body": json.dumps({"message": "Product created successfully", "product": body}, cls=DecimalEncoder)}
+            return {
+                    "statusCode": 500,
+                    "headers": {"Content-Type": "application/json"},
+                    "body": json.dumps({"message": "Error sending message to SQS"})
+                    }
+        return {
+                "statusCode": 200,
+                "headers": {"Content-Type": "application/json"},
+                "body": json.dumps({"message": "Product created successfully", "product": body}, cls=DecimalEncoder)
+            }
 
     def get_all_products(self):
         """Retrieve all products."""
@@ -35,6 +47,15 @@ class ProductModel:
         except Exception:
             return {"statusCode": 500, "body": json.dumps({"message": "Error sending message to SQS"})}
         return {"statusCode": 200, "body": json.dumps({"items": items, "status": "success"}, cls=DecimalEncoder)}
+
+    def get_all_product_names(self):
+        """Retrieve all product names."""
+        items = self.dynamodb_gateway.get_all_product_names()
+        return {
+            "statusCode": 200,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"items": items, "status": "success"}, cls=DecimalEncoder)
+            }
 
     def view_product(self, product_id):
         """Retrieve a single product by ID."""
@@ -51,14 +72,14 @@ class ProductModel:
                 "headers": {"Content-Type": "application/json"},
                 "body": json.dumps({"message": "Product not found"})
             }
-        try:
-            self.sqs_gateway.send_sqs_message("products-queue-rey-sqs", f"Function: Get a Product! {product_id}")
-        except Exception:
-            return {
-                "statusCode": 500,
-                "headers": {"Content-Type": "application/json"},
-                "body": json.dumps({"message": "Error sending message to SQS"})
-            }
+        # try:
+        #     self.sqs_gateway.send_sqs_message("products-queue-rey-sqs", f"Function: Get a Product! {product_id}")
+        # except Exception:
+        #     return {
+        #         "statusCode": 500,
+        #         "headers": {"Content-Type": "application/json"},
+        #         "body": json.dumps({"message": "Error sending message to SQS"})
+        #     }
         return {
             "statusCode": 200,
             "headers": {"Content-Type": "application/json"},

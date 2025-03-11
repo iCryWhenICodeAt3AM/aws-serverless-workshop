@@ -4,13 +4,14 @@ service: python-serverless-rey
 provider:
   name: aws
   runtime: python3.12
-  role: arn:aws:iam::272898481162:role/serverless-app-role
+  role: ${env:ROLE}
   tracing:
     lambda: true  # Enable X-Ray tracing for Lambda
     apiGateway: true  # Enable tracing for API Gateway
   environment:
-    PRODUCTS_TABLE: ${env:PRODUCTS_TABLE}  # Use environment variable
-    PRODUCTS_INVENTORY_TABLE: ${env:PRODUCTS_INVENTORY_TABLE}  # Use environment variable
+    PRODUCTS_TABLE: ${env:PRODUCTS_TABLE}
+    PRODUCTS_INVENTORY_TABLE: ${env:PRODUCTS_INVENTORY_TABLE}
+    PRODUCT_NAME_TABLE: ${env:PRODUCT_NAME_TABLE}
 
 functions:
   hello:
@@ -79,6 +80,12 @@ functions:
     events:
       - httpApi:
           path: /API/product
+          method: get
+  getAllProductNames:
+    handler: handlers/productHandler.get_all_product_names_handler
+    events:
+      - httpApi:
+          path: /API/product-names
           method: get
 
 custom:
