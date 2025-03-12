@@ -1,0 +1,81 @@
+:root {
+  --primary: #FF6B35;
+  --secondary: #004E89;
+}
+
+body {
+  background-color: #f8f9fa;
+}
+
+.navbar-brand {
+  font-weight: 700;
+  color: var(--primary) !important;
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  border-color: var(--primary);
+}
+
+.btn-primary:hover {
+  background-color: #e55a2a;
+  border-color: #e55a2a;
+}
+
+.btn-outline-primary {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.btn-outline-primary:hover {
+  background-color: var(--primary);
+  border-color: var(--primary);
+}
+
+.restaurant-card {
+  transition: transform 0.3s ease;
+  cursor: pointer;
+}
+
+.restaurant-card:hover {
+  transform: translateY(-5px);
+}
+
+.food-item {
+  transition: transform 0.2s ease;
+}
+
+.food-item:hover {
+  transform: translateY(-3px);
+}
+
+.badge-delivery {
+  background-color: var(--primary);
+  color: white;
+}
+
+.category-item {
+  white-space: nowrap;
+}
+
+.cart-item {
+  border-bottom: 1px solid #dee2e6;
+}
+
+.cart-item:last-child {
+  border-bottom: none;
+}
+
+.sticky-top {
+  top: 80px;
+}
+
+@media (max-width: 768px) {
+  .sticky-top {
+    position: relative;
+    top: 0;
+  }
+  .restaurant-card {
+    transform: scale(0.9);
+  }
+}

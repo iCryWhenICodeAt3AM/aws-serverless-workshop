@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pa-deliver | Restaurant Menu</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.10.5/font/bootstrap-icons.min.css" rel="stylesheet">
+  <!-- Custom CSS -->
+  <link href="../static/assets/css/styles.css" rel="stylesheet">
+  <script src="{{ web_host_url }}/js/widget.js"></script>
+</head>
+<body>
+  <!-- Header -->
+  {% include 'components/header.html' %}
+
+  <!-- Main Content -->
+  <main class="py-5">
+    <div class="container">
+      <!-- Featured Restaurants -->
+      <section class="mb-5">
+        <h2 class="mb-4">Featured Restaurants</h2>
+        <button class="btn btn-outline-primary mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#featured-restaurants" aria-expanded="false" aria-controls="featured-restaurants">
+          Toggle Featured Restaurants
+        </button>
+        <div class="collapse show" id="featured-restaurants">
+          <div class="row g-4"> 
+            <!-- Featured restaurants will be dynamically generated here -->
+          </div>
+        </div>
+      </section>
+
+      <!-- Restaurant Menu Section -->
+      <section class="mb-5">
+        <div class="row mb-4 align-items-center">
+          <div class="col">
+            <h2 class="mb-0" id="restaurant-name">Restaurant Menu</h2>
+          </div>
+          <div class="col-auto">
+            <a href="/" class="btn btn-outline-primary">Back to Restaurants</a>
+          </div>
+        </div>
+
+        <!-- Categories -->
+        <div class="scrolling-wrapper mb-4">
+          <div class="d-flex gap-2 overflow-auto pb-2" id="category-buttons">
+            <!-- Category buttons will be dynamically generated here -->
+          </div>
+        </div>
+
+        <div class="row">
+          <!-- Menu Items -->
+          <div class="col-lg-8">
+            <div class="row" id="menu">
+              <!-- Menu items will be dynamically generated here -->
+            </div>
+          </div>
+          
+          <!-- Cart -->
+          <div class="col-lg-4">
+            {% include 'components/cart.html' %}
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  {% include 'components/footer.html' %}
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+  <script src="../static/assets/js/highlight.js"></script>
+  <script src="../static/assets/js/restaurant.js"></script>
+  <script>
+    window.fcWidget.init({
+      token: "{{ web_chat_token }}",
+      host: "{{ web_host_url }}",
+      externalId: sessionStorage.getItem('user_id') || "default_user",
+      open: true,
+      config: {
+        fullscreen: true,
+        headerProperty: {
+          hideHeader: true
+        }
+      }
+    });
+
+    // Set user_id in session storage
+    sessionStorage.setItem('user_id', 'default_user'); // Replace with actual user ID logic
+
+    // Fetch cart based on user ID
+    const userId = sessionStorage.getItem('user_id');
+    fetch(`/get_cart/${userId}`)
+      .then(response => response.json())
+      .then(cart => {
+        sessionStorage.setItem('cart', JSON.stringify(cart));
+        updateCart();
+      })
+      .catch(error => console.error('Error fetching cart:', error));
+  </script>
+  <script>
+    const API_BASE_URL = '{{ api_base_url }}'; // Pass the API base URL to the JavaScript
+  </script>
+  <script src="../static/assets/js/cart.js"></script>
+</body>
+</html>
