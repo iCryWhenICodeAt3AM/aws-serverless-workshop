@@ -57,7 +57,7 @@ def view_product_handler(event, context):
             "body": json.dumps({"message": "Missing product_id or product_name header"})
         }
 
-    if product_name:
+    if product_name and product_name.lower() != "null":
         try:
             # Search the product_name_table for the product ID
             product_name_item = product_model.dynamodb_gateway.get_product_name(product_name)
