@@ -1,0 +1,46 @@
+<header>
+  <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm py-3">
+    <div class="container">
+      <a class="navbar-brand d-flex align-items-center" href="#">
+        <img src="../static/assets/logo.png" alt="Logo" style="width: 40px; height: 40px; margin-right: 10px;">
+        Pa-deliver
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="/">Home</a>
+          </li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              Restaurants
+            </a>
+            <ul class="dropdown-menu" aria-labelledby="navbarDropdown" id="restaurant-dropdown">
+              <!-- Restaurant links will be dynamically generated here -->
+            </ul>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#">Promotions</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#">About</a>
+          </li>
+        </ul>
+        <div class="d-flex align-items-center">
+          <div class="position-relative me-3">
+            <button class="btn btn-outline-primary position-relative">
+              <i class="bi bi-cart"></i>
+              <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                3
+              </span>
+            </button>
+          </div>
+          <button class="btn btn-outline-secondary me-2">Sign In</button>
+          <button class="btn btn-primary">Sign Up</button>
+        </div>
+      </div>
+    </div>
+  </nav>
+</header>

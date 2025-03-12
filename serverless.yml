@@ -12,6 +12,8 @@ provider:
     PRODUCTS_TABLE: ${env:PRODUCTS_TABLE}
     PRODUCTS_INVENTORY_TABLE: ${env:PRODUCTS_INVENTORY_TABLE}
     PRODUCT_NAME_TABLE: ${env:PRODUCT_NAME_TABLE}
+    PADELIVER_PRODUCTS_TABLE: ${env:PADELIVER_PRODUCTS_TABLE}
+    S3_BUCKET_NAME: ${env:S3_BUCKET_NAME}
 
 functions:
   hello:
@@ -87,6 +89,30 @@ functions:
       - httpApi:
           path: /API/product-names
           method: get
+  getPadeliverProducts:
+    handler: handlers/padeliverHandler.get_padeliver_products
+    events:
+      - httpApi:
+          path: /API/padeliver-products
+          method: get
+  processPadeliverCsvCreate:
+    handler: handlers/padeliverHandler.process_padeliver_csv
+    events:
+      - s3:
+          bucket: ${env:S3_BUCKET_NAME}
+          event: s3:ObjectCreated:*
+          rules:
+            - prefix: for_padeliver_create/
+          existing: true
+  processPadeliverCsvDelete:
+    handler: handlers/padeliverHandler.process_padeliver_csv
+    events:
+      - s3:
+          bucket: ${env:S3_BUCKET_NAME}
+          event: s3:ObjectCreated:*
+          rules:
+            - prefix: for_padeliver_delete/
+          existing: true
 
 custom:
   prune:
