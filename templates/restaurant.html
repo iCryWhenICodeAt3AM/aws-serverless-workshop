@@ -74,12 +74,11 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
   <script src="../static/assets/js/highlight.js"></script>
   <script src="../static/assets/js/restaurant.js"></script>
-  <script src="../static/assets/js/cart.js"></script>
-  <script src="//eu.fw-cdn.com/13052603/1004005.js" chat="true" widgetId="a958f304-b04d-40a8-a7c0-cccf33513064"></script>
   <script>
     window.fcWidget.init({
       token: "{{ web_chat_token }}",
       host: "{{ web_host_url }}",
+      externalId: sessionStorage.getItem('user_id') || "default_user",
       open: true,
       config: {
         fullscreen: true,
@@ -88,6 +87,23 @@
         }
       }
     });
+
+    // Set user_id in session storage
+    sessionStorage.setItem('user_id', 'default_user'); // Replace with actual user ID logic
+
+    // Fetch cart based on user ID
+    const userId = sessionStorage.getItem('user_id');
+    fetch(`/get_cart/${userId}`)
+      .then(response => response.json())
+      .then(cart => {
+        sessionStorage.setItem('cart', JSON.stringify(cart));
+        updateCart();
+      })
+      .catch(error => console.error('Error fetching cart:', error));
   </script>
+  <script>
+    const API_BASE_URL = '{{ api_base_url }}'; // Pass the API base URL to the JavaScript
+  </script>
+  <script src="../static/assets/js/cart.js"></script>
 </body>
 </html>

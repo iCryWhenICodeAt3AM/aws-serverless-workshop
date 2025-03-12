@@ -68,9 +68,8 @@
           <!-- Menu Items -->
           <div class="col-lg-8">
             <div class="row" id="menu">
-
+              <!-- Menu items will be dynamically generated here -->
             </div>
-            <!-- Menu items will be dynamically generated here -->
           </div>
           
           <!-- Cart -->
@@ -92,9 +91,12 @@
   <script src="../static/assets/js/cart.js"></script>
   <script src="//eu.fw-cdn.com/13052603/1004005.js" chat="true" widgetId="a958f304-b04d-40a8-a7c0-cccf33513064"></script>
   <script>
+    sessionStorage.setItem('user_id', 'default_user'); // Replace with actual user ID logic
+
     window.fcWidget.init({
       token: "{{ WEB_CHAT_TOKEN }}",
       host: "{{ WEB_HOST_URL }}",
+      externalId: sessionStorage.getItem('user_id') || "default_user",
       open: true,
       config: {
         fullscreen: true,
@@ -103,6 +105,16 @@
         }
       }
     });
+
+    // Fetch cart based on user ID
+    const userId = sessionStorage.getItem('user_id');
+    fetch(`https://dozmuvdice.execute-api.us-east-2.amazonaws.com/api/cart/${userId}`)
+      .then(response => response.json())
+      .then(cart => {
+        sessionStorage.setItem('cart', JSON.stringify(cart));
+        updateCart();
+      })
+      .catch(error => console.error('Error fetching cart:', error));
   </script>
 </body>
 </html>

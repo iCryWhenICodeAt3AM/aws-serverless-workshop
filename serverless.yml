@@ -113,6 +113,18 @@ functions:
           rules:
             - prefix: for_padeliver_delete/
           existing: true
+  addToCart:
+    handler: handlers/cartHandler.add_to_cart
+    events:
+      - httpApi:
+          path: /api/cart/{user_id}
+          method: post
+  getCart:
+    handler: handlers/cartHandler.get_cart
+    events:
+      - httpApi:
+          path: /api/cart/{user_id}
+          method: get
 
 custom:
   prune:
@@ -171,3 +183,14 @@ resources:
           detail-type:
             - "create_product"
         State: ENABLED
+    UserCartsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: user_carts
+        AttributeDefinitions:
+          - AttributeName: user_id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: user_id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST

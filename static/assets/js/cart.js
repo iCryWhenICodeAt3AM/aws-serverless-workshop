@@ -1,46 +1,61 @@
 document.addEventListener("DOMContentLoaded", function() {
   let cart = JSON.parse(sessionStorage.getItem('cart')) || [];
+  const userId = sessionStorage.getItem('user_id') || 'default_user'; // Replace with actual user ID logic
 
   function updateCart() {
     const cartContainer = document.getElementById('cart');
     cartContainer.innerHTML = '';
     let total = 0;
 
-    cart.forEach(item => {
-      const cartItem = `
-        <div class="cart-item py-3">
-          <div class="d-flex justify-content-between">
-            <div>
-              <h6 class="mb-1">${item.quantity}x ${item.item}</h6>
-              <p class="text-muted small mb-0">${item.description}</p>
-            </div>
-            <div class="text-end">
-              <span class="fw-bold">$${(item.price / 100).toFixed(2)}</span>
-              <div class="btn-group btn-group-sm mt-1">
-                <button class="btn btn-outline-secondary" onclick="updateQuantity('${item.product_id}', -1)">-</button>
-                <button class="btn btn-outline-secondary" onclick="updateQuantity('${item.product_id}', 1)">+</button>
+    if (Array.isArray(cart)) {
+      cart.forEach(item => {
+        const cartItem = `
+          <div class="cart-item py-3">
+            <div class="d-flex justify-content-between">
+              <div>
+                <h6 class="mb-1">${item.quantity}x ${item.item}</h6>
+                <p class="text-muted small mb-0">${item.description}</p>
+              </div>
+              <div class="text-end">
+                <span class="fw-bold">$${(item.price / 100).toFixed(2)}</span>
+                <div class="btn-group btn-group-sm mt-1">
+                  <button class="btn btn-outline-secondary" onclick="updateQuantity('${item.product_id}', -1)">-</button>
+                  <button class="btn btn-outline-secondary" onclick="updateQuantity('${item.product_id}', 1)">+</button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      `;
-      cartContainer.insertAdjacentHTML('beforeend', cartItem);
-      total += item.price * item.quantity;
-    });
+        `;
+        cartContainer.insertAdjacentHTML('beforeend', cartItem);
+        total += item.price * item.quantity;
+      });
+    }
 
     document.querySelector('.card-footer .fw-bold:last-child').textContent = `$${(total / 100).toFixed(2)}`;
     sessionStorage.setItem('cart', JSON.stringify(cart));
   }
 
   function addToCart(product) {
-    const existingProduct = cart.find(item => item.product_id === product.product_id);
-    if (existingProduct) {
-      existingProduct.quantity += 1;
-    } else {
-      product.quantity = 1;
-      cart.push(product);
+    const quantity = parseInt(prompt("Enter quantity:", "1"));
+    if (isNaN(quantity) || quantity <= 0) {
+      alert("Invalid quantity. Please enter a positive number.");
+      return;
     }
-    updateCart();
+    product.quantity = quantity;
+
+    fetch('/add_to_cart', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ user_id: userId, product: product })
+    })
+    .then(response => response.json())
+    .then(updatedCart => {
+      cart = updatedCart;
+      updateCart();
+    })
+    .catch(error => console.error('Error adding to cart:', error));
   }
 
   function updateQuantity(productId, change) {
@@ -52,6 +67,16 @@ document.addEventListener("DOMContentLoaded", function() {
       }
       updateCart();
     }
+  }
+
+  function fetchCart() {
+    fetch(`/get_cart/${userId}`)
+      .then(response => response.json())
+      .then(fetchedCart => {
+        cart = fetchedCart;
+        updateCart();
+      })
+      .catch(error => console.error('Error fetching cart:', error));
   }
 
   // Attach event listeners to Add buttons
@@ -70,5 +95,5 @@ document.addEventListener("DOMContentLoaded", function() {
 
   window.updateQuantity = updateQuantity; // Make updateQuantity function globally accessible
 
-  updateCart();
+  fetchCart(); // Fetch the cart when the page loads
 });
