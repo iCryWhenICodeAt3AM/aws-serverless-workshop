@@ -2,6 +2,24 @@ document.addEventListener("DOMContentLoaded", function() {
   let cart = JSON.parse(sessionStorage.getItem('cart')) || [];
   const userId = sessionStorage.getItem('user_id') || 'default_user'; // Replace with actual user ID logic
 
+  const pubnub = new PubNub({
+    subscribeKey: PUBNUB_SUBSCRIBE_KEY,
+    publishKey: PUBNUB_PUBLISH_KEY,
+    uuid: userId
+  });
+
+  pubnub.addListener({
+    message: function(event) {
+      if (event.message.action === 'add_to_cart' && event.message.status === 'success') {
+        fetchCart();
+      }
+    }
+  });
+
+  pubnub.subscribe({
+    channels: [userId]
+  });
+
   function updateCart() {
     const cartContainer = document.getElementById('cart');
     cartContainer.innerHTML = '';

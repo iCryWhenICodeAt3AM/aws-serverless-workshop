@@ -13,6 +13,8 @@ from flask import Flask, render_template, jsonify, request, session
 from models.flaskProductModel import FlaskProductModel
 import boto3
 import requests
+from pubnub.pnconfiguration import PNConfiguration
+from pubnub.pubnub import PubNub
 
 app = Flask(__name__, static_folder='static')
 app.secret_key = 'supersecretkey'
@@ -30,6 +32,12 @@ API_BASE_URL = os.getenv('API_BASE_URL')
 
 if not API_BASE_URL:
     raise ValueError("API_BASE_URL environment variable is not set")
+
+pnconfig = PNConfiguration()
+pnconfig.subscribe_key = os.getenv('PUBNUB_SUBSCRIBE_KEY')
+pnconfig.publish_key = os.getenv('PUBNUB_PUBLISH_KEY')
+pnconfig.uuid = "server-uuid"
+pubnub = PubNub(pnconfig)
 
 @app.route('/')
 def hello_world():
@@ -73,6 +81,7 @@ def add_to_cart():
         response = requests.post(f"{API_BASE_URL}/api/cart/{user_id}", json=product)
         if response.status_code == 200:
             cart = response.json()
+            pubnub.publish().channel(user_id).message({"action": "add_to_cart", "status": "success"}).sync()
             return jsonify(cart)
         else:
             print(f"Error in add_to_cart: {response.status_code} - {response.text}")
@@ -94,6 +103,17 @@ def get_cart(user_id):
     except Exception as e:
         print(f"Error in get_cart: {e}")
         return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/product-names', methods=['GET'])
+def get_product_names():
+    try:
+        response = padeliver_table.scan()
+        products = response.get('Items', [])
+        product_names = [{"id": product["product_id"], "name": product["item"]} for product in products]
+        return jsonify(product_names)
+    except Exception as e:
+        print(f"Error fetching product names: {e}")
+        return jsonify([])
 
 if __name__ == '__main__':
     app.run(debug=True)

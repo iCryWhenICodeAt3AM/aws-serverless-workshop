@@ -40,3 +40,24 @@ class AWSGateway:
         except Exception as e:
             print(f"Error fetching S3 object: {e}")
             return None
+
+    def search_padeliver_products_by_id(self, product_id):
+        try:
+            response = self.padeliver_table.get_item(Key={'product_id': product_id})
+            product = response.get('Item', {})
+            return [product] if product else []
+        except Exception as e:
+            print(f"Error searching product by ID: {e}")
+            return []
+
+    def search_padeliver_products_by_name(self, product_name):
+        try:
+            response = self.padeliver_table.scan(
+                FilterExpression="contains(item, :name)",
+                ExpressionAttributeValues={":name": product_name}
+            )
+            products = response.get('Items', [])
+            return products
+        except Exception as e:
+            print(f"Error searching product by name: {e}")
+            return []
