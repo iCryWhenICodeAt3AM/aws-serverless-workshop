@@ -78,17 +78,23 @@ def add_to_cart():
     try:
         user_id = request.json.get('user_id')
         product = request.json.get('product')
+        if not user_id or not product:
+            return jsonify({'error': 'Missing user_id or product in request'}), 400
+
+        print(f"Adding to cart: user_id={user_id}, product={product}")
+
         response = requests.post(f"{API_BASE_URL}/api/cart/{user_id}", json=product)
         if response.status_code == 200:
             cart = response.json()
-            pubnub.publish().channel(user_id).message({"action": "add_to_cart", "status": "success"}).sync()
+            print(f"Successfully added to cart: {cart}")
+            # pubnub.publish().channel(user_id).message({"action": "add_to_cart", "status": "success"}).sync()
             return jsonify(cart)
         else:
             print(f"Error in add_to_cart: {response.status_code} - {response.text}")
-            return jsonify({'error': 'Failed to add product to cart'}), response.status_code
+            return jsonify({'error': f"Failed to add product to cart: {response.text}"}), response.status_code
     except Exception as e:
         print(f"Error in add_to_cart: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+        return jsonify({'error': f"Internal server error: {str(e)}"}), 500
 
 @app.route('/get_cart/<user_id>', methods=['GET'])
 def get_cart(user_id):

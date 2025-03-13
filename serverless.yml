@@ -131,6 +131,30 @@ functions:
       - httpApi:
           path: /api/padeliver-product-names
           method: get
+  viewPadeliverProductByIdOrName:
+    handler: handlers/padeliverHandler.view_padeliver_product_by_id_or_name
+    events:
+      - httpApi:
+          path: /api/padeliver-product/view
+          method: get
+  viewPadeliverProductByIdOrNameWithUser:
+    handler: handlers/padeliverHandler.view_padeliver_product_by_id_or_name_with_user
+    events:
+      - httpApi:
+          path: /api/padeliver-product/view/{user_id}
+          method: get
+  addPadeliverInventory:
+    handler: handlers/padeliverHandler.add_padeliver_inventory
+    events:
+      - httpApi:
+          path: /api/padeliver-inventory
+          method: post
+  checkout:
+    handler: handlers/cartHandler.checkout
+    events:
+      - httpApi:
+          path: /api/cart/{user_id}/checkout
+          method: post
 
 custom:
   prune:
@@ -144,7 +168,8 @@ custom:
     - node_modules/**
     - tests/**
     - docs/**
-    - static/assets/js/config.js  # Exclude the config file containing the PubNub keys
+    - venv/**
+    - .vscode/**
 
 plugins:
   - serverless-prune-plugin

@@ -50,16 +50,8 @@ def view_product_handler(event, context):
     product_id = headers.get("product_id")
     product_name = headers.get("product_name")
 
-    if not product_id and not product_name:
-        return {
-            "statusCode": 400,
-            "headers": {"Content-Type": "application/json"},
-            "body": json.dumps({"message": "Missing product_id or product_name header"})
-        }
-
-    if product_name and product_name.lower() != "0":
+    if product_id == "default" and product_name:
         try:
-            # Search the product_name_table for the product ID
             product_name_item = product_model.dynamodb_gateway.get_product_name(product_name)
             if product_name_item:
                 product_id = product_name_item["product_id"]
@@ -75,6 +67,12 @@ def view_product_handler(event, context):
                 "headers": {"Content-Type": "application/json"},
                 "body": json.dumps({"message": f"Error searching product name table: {str(e)}"})
             }
+    elif not product_id:
+        return {
+            "statusCode": 400,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"message": "Missing product_id or product_name header"})
+        }
 
     response = product_model.view_product(product_id)
     response["headers"] = {"Content-Type": "application/json"}

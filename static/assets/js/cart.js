@@ -1,3 +1,6 @@
+// Ensure PubNub is included
+// <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.4.29.9.min.js"></script>
+
 document.addEventListener("DOMContentLoaded", function() {
   let cart = JSON.parse(sessionStorage.getItem('cart')) || [];
   const userId = sessionStorage.getItem('user_id') || 'default_user'; // Replace with actual user ID logic
