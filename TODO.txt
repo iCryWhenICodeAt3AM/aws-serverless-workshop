@@ -1,0 +1,8 @@
+- add quantity per product fetch
+- add error traps on front-end
+- add clear session in freshchat widget
+- try to dynamically change user -> conversation dynamically in freshchat
+- Improve FAQs and Natural Language in freshchat
+- Clean codebase (remove unused line of codes due to optimization)
+- Screenshot flows and conditionals if there is time for the Freshworks team
+- Check postman if its being saved online and update it
