@@ -39,6 +39,11 @@ def hello_world():
 def restaurant_page():
     return render_template('restaurant.html', web_chat_token=os.getenv('WEB_CHAT_TOKEN'), web_host_url=os.getenv('WEB_HOST_URL'), unique_site_id=os.getenv('UNIQUE_SITE_ID'), api_base_url=API_BASE_URL)
 
+@app.route('/signin.html')
+def signin():
+    """Render the sign-in page."""
+    return render_template('signin.html')
+
 @app.route('/api/products')
 def get_products():
     try:
@@ -70,16 +75,22 @@ def add_to_cart():
     try:
         user_id = request.json.get('user_id')
         product = request.json.get('product')
+        if not user_id or not product:
+            return jsonify({'error': 'Missing user_id or product in request'}), 400
+
+        print(f"Adding to cart: user_id={user_id}, product={product}")
+
         response = requests.post(f"{API_BASE_URL}/api/cart/{user_id}", json=product)
         if response.status_code == 200:
             cart = response.json()
+            print(f"Successfully added to cart: {cart}")
             return jsonify(cart)
         else:
             print(f"Error in add_to_cart: {response.status_code} - {response.text}")
-            return jsonify({'error': 'Failed to add product to cart'}), response.status_code
+            return jsonify({'error': f"Failed to add product to cart: {response.text}"}), response.status_code
     except Exception as e:
         print(f"Error in add_to_cart: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+        return jsonify({'error': f"Internal server error: {str(e)}"}), 500
 
 @app.route('/get_cart/<user_id>', methods=['GET'])
 def get_cart(user_id):
@@ -93,6 +104,40 @@ def get_cart(user_id):
             return jsonify({'error': 'Failed to fetch cart'}), response.status_code
     except Exception as e:
         print(f"Error in get_cart: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/product-names', methods=['GET'])
+def get_product_names():
+    try:
+        response = padeliver_table.scan()
+        products = response.get('Items', [])
+        product_names = [{"id": product["product_id"], "name": product["item"]} for product in products]
+        return jsonify(product_names)
+    except Exception as e:
+        print(f"Error fetching product names: {e}")
+        return jsonify([])
+
+@app.route('/logout', methods=['GET'])
+def logout():
+    """Clear the session and redirect to the sign-in page."""
+    session.clear()  # Clear the session
+    return jsonify({"message": "Logged out successfully", "redirect": "/signin.html"}), 200
+
+@app.route('/api/cart/<user_id>/checkout', methods=['POST'])
+def checkout(user_id):
+    """Handle the checkout process for a user."""
+    try:
+        # Send a POST request to the checkout endpoint
+        response = requests.post(f"{API_BASE_URL}/api/cart/{user_id}/checkout")
+        if response.status_code == 200:
+            checkout_data = response.json()
+            print(f"Checkout successful for user {user_id}: {checkout_data}")
+            return jsonify(checkout_data), 200
+        else:
+            print(f"Checkout failed for user {user_id}: {response.status_code} - {response.text}")
+            return jsonify({'error': 'Failed to process checkout'}), response.status_code
+    except Exception as e:
+        print(f"Error during checkout: {e}")
         return jsonify({'error': 'Internal server error'}), 500
 
 if __name__ == '__main__':
