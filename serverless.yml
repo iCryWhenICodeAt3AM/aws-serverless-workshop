@@ -5,6 +5,7 @@ provider:
   name: aws
   runtime: python3.12
   role: ${env:ROLE}
+  stage: dev  # Default stage value
   tracing:
     lambda: true  # Enable X-Ray tracing for Lambda
     apiGateway: true  # Enable tracing for API Gateway
@@ -16,103 +17,24 @@ provider:
     S3_BUCKET_NAME: ${env:S3_BUCKET_NAME}
 
 functions:
-  hello:
-    handler: handlers/helloHandler.hello_handler
-    events:
-      - httpApi:
-          path: /
-          method: get
-  createOneProduct:
-    handler: handlers/productHandler.create_one_product
-    events:
-      - httpApi:
-          path: /products
-          method: post
-
-  getAllProducts:
-    handler: handlers/productHandler.get_all_products_handler
-    events:
-      - httpApi:
-          path: /products
-          method: get
-  productModification:
-    handler: handlers/productHandler.product_modification
-    events:
-      - httpApi:
-          path: /product_modification
-          method: get
-      - httpApi:
-          path: /product_modification
-          method: put
-      - httpApi:
-          path: /product_modification
-          method: delete
-      - httpApi:
-          path: /product_modification
-          method: post
-  batchCreateProducts:
-    handler: handlers/productBatchHandler.batch_create_products_handler
-    events:
-      - s3:
-          bucket: products-s3-rey
-          event: s3:ObjectCreated:*
-          rules:
-            - prefix: for_create/
-          existing: true
-  batchDeleteProducts:
-    handler: handlers/productBatchHandler.batch_delete_products_handler
-    events:
-      - s3:
-          bucket: products-s3-rey
-          event: s3:ObjectCreated:*
-          rules:
-            - prefix: for_delete/
-          existing: true
-  processSqsMessage:
-    handler: handlers/sqsHandler.process_sqs_message
-    events:
-      - sqs:
-          arn:
-            Fn::GetAtt:
-              - ProductsQueue
-              - Arn
-          batchSize: 1
   viewProduct:
     handler: handlers/productHandler.view_product_handler
     events:
       - httpApi:
-          path: /API/product
+          path: /api/product
           method: get
   getAllProductNames:
     handler: handlers/productHandler.get_all_product_names_handler
     events:
       - httpApi:
-          path: /API/product-names
+          path: /api/product-names
           method: get
   getPadeliverProducts:
     handler: handlers/padeliverHandler.get_padeliver_products
     events:
       - httpApi:
-          path: /API/padeliver-products
+          path: /api/padeliver-products
           method: get
-  processPadeliverCsvCreate:
-    handler: handlers/padeliverHandler.process_padeliver_csv
-    events:
-      - s3:
-          bucket: ${env:S3_BUCKET_NAME}
-          event: s3:ObjectCreated:*
-          rules:
-            - prefix: for_padeliver_create/
-          existing: true
-  processPadeliverCsvDelete:
-    handler: handlers/padeliverHandler.process_padeliver_csv
-    events:
-      - s3:
-          bucket: ${env:S3_BUCKET_NAME}
-          event: s3:ObjectCreated:*
-          rules:
-            - prefix: for_padeliver_delete/
-          existing: true
   addToCart:
     handler: handlers/cartHandler.add_to_cart
     events:
@@ -155,6 +77,12 @@ functions:
       - httpApi:
           path: /api/cart/{user_id}/checkout
           method: post
+  getFormattedCart:
+    handler: handlers/cartHandler.get_formatted_cart
+    events:
+      - httpApi:
+          path: /api/cart/{user_id}/formatted
+          method: get
 
 custom:
   prune:
@@ -169,6 +97,9 @@ custom:
     - tests/**
     - docs/**
     - venv/**
+    - .venv/**
+    - .gitignore
+    - .gitattributes
     - .vscode/**
 
 plugins:
@@ -226,3 +157,8 @@ resources:
           - AttributeName: user_id
             KeyType: HASH
         BillingMode: PAY_PER_REQUEST
+    CustomResourceLogGroup:
+      Type: AWS::Logs::LogGroup
+      Properties:
+        LogGroupName: /aws/lambda/${self:service}-${self:provider.stage}-custom-resource-existing-s3-${sls:instanceId}
+        RetentionInDays: 14

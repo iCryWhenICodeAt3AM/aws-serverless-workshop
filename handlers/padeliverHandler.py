@@ -5,19 +5,29 @@ from decimal import Decimal
 from gateways.awsGateway import AWSGateway
 from models.padeliverModel import PadeliverModel
 from handlers.cartHandler import get_cart
+import boto3
+from boto3.dynamodb.conditions import Key
 
 aws_gateway = AWSGateway()
 padeliver_model = PadeliverModel()
+dynamodb = boto3.resource('dynamodb')
+padeliver_table = dynamodb.Table('PADELIVER_PRODUCTS_TABLE')  # Replace with the actual table name or environment variable
 
 def get_padeliver_products(event, context):
-    products = aws_gateway.get_padeliver_products()
-    return {
-        'statusCode': 200,
-        'body': json.dumps(products),
-        'headers': {
-            'Content-Type': 'application/json',
-        },
-    }
+    """Handler for retrieving all padeliver products."""
+    try:
+        response = padeliver_table.scan()
+        items = response.get('Items', [])
+        return {
+            "statusCode": 200,
+            'headers': {'Content-Type': 'application/json',},
+            "body": json.dumps(items)
+        }
+    except Exception as e:
+        return {
+            "statusCode": 500,
+            "body": json.dumps({"message": f"Error retrieving products: {str(e)}"})
+        }
 
 def process_padeliver_csv(event, context):
     bucket_name = os.getenv('S3_BUCKET_NAME')
@@ -146,15 +156,18 @@ def view_padeliver_product_by_id_or_name_with_user(event, context):
 
     # Fetch the user's cart
     cart_response = get_cart({"pathParameters": {"user_id": user_id}}, context)
-    cart = json.loads(cart_response["body"])
+    cart_data = json.loads(cart_response["body"])
+
+    # Ensure cart_data is a dictionary and extract the cart list
+    cart = cart_data.get("cart", []) if isinstance(cart_data, dict) else []
+
+    product["in_user_cart"] = 0
 
     # Find the matching product in the user's cart and append the quantity
     for cart_item in cart:
-        if cart_item["product_id"] == product_id:
-            product["in_user_cart"] = Decimal(cart_item["quantity"])
+        if cart_item.get("product_id") == product_id:
+            product["in_user_cart"] = int(cart_item["quantity"])  # Convert to int
             break
-        else:
-            product["in_user_cart"] = 0
 
     response["body"] = json.dumps(product, default=aws_gateway.decimal_default)
     response["headers"] = {"Content-Type": "application/json"}
@@ -188,7 +201,7 @@ def add_padeliver_inventory(event, context):
     # Create the inventory item
     inventory_item = {
         "product_id": product_id,
-        "quantity": quantity,
+        "quantity": int(quantity),
         "remark": remark,
         "datetime": current_time
     }

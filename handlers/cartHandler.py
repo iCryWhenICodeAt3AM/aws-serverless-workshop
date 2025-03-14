@@ -61,9 +61,12 @@ def get_cart(event, context):
     # Convert any Decimal to string
     cart = json.loads(json.dumps(cart, default=decimal_default))
 
+    # Add a message indicating if the cart is empty or not
+    message = "Cart is empty" if not cart else "Cart contains items"
+
     return {
         'statusCode': 200,
-        'body': json.dumps(cart),
+        'body': json.dumps({"message": message, "cart": cart}),
         'headers': {
             'Content-Type': 'application/json',
         },
@@ -85,28 +88,16 @@ def checkout(event, context):
             },
         }
 
-    # Get the current local time
+    # Push all cart contents to inventory as negative quantities
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    # Process each item in the cart
     for item in cart:
         inventory_item = {
             "product_id": item['product_id'],
             "quantity": -Decimal(item['quantity']),  # Negative quantity for purchase
             "remark": "Purchased item!",
-            "timestamp": current_time
+            "datetime": current_time  # Ensure the datetime key is included
         }
-        try:
-            inventory_table.put_item(Item=inventory_item)
-        except Exception as e:
-            print(f"❌ Error adding inventory item: {e}")
-            return {
-                'statusCode': 500,
-                'body': json.dumps({"message": f"Error processing item {item['product_id']}: {str(e)}"}),
-                'headers': {
-                    'Content-Type': 'application/json',
-                },
-            }
+        inventory_table.put_item(Item=inventory_item)
 
     # Clear the cart after checkout
     cart_table.update_item(
@@ -119,6 +110,43 @@ def checkout(event, context):
     return {
         'statusCode': 200,
         'body': json.dumps({"message": "Checkout successful"}),
+        'headers': {
+            'Content-Type': 'application/json',
+        },
+    }
+
+def get_formatted_cart(event, context):
+    user_id = event['pathParameters']['user_id']
+
+    # Fetch the current cart
+    response = cart_table.get_item(Key={'user_id': user_id})
+    cart = response.get('Item', {}).get('cart', [])
+
+    if not cart:
+        return {
+            'statusCode': 200,
+            'body': json.dumps({"message": "Cart is empty"}),
+            'headers': {
+                'Content-Type': 'application/json',
+            },
+        }
+
+    formatted_items = []
+    total_price = Decimal(0)
+
+    for item in cart:
+        item_total = Decimal(item['quantity']) * Decimal(item['price'])
+        formatted_items.append(f"{item['quantity']}x {item['item']}: {item_total:.2f}")
+        total_price += item_total
+
+    formatted_cart = {
+        "items": formatted_items,
+        "total": f"{total_price:.2f}"
+    }
+
+    return {
+        'statusCode': 200,
+        'body': json.dumps(formatted_cart),
         'headers': {
             'Content-Type': 'application/json',
         },

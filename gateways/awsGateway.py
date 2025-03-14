@@ -102,7 +102,7 @@ class AWSGateway:
                 )
                 items = inventory_response.get("Items", [])
                 total_quantity = sum(Decimal(item['quantity']) for item in items) if items else Decimal(0)
-                product['total_quantity'] = total_quantity # Convert Decimal to float
+                product['total_quantity'] = int(total_quantity)  # Convert to int
                 return {"statusCode": 200, "body": json.dumps(product, default=self.decimal_default)}
             else:
                 return {"statusCode": 404, "body": json.dumps({"message": "Product not found"})}
@@ -112,7 +112,7 @@ class AWSGateway:
 
     def decimal_default(self, obj):
         if isinstance(obj, Decimal):
-            return float(obj)
+            return int(obj)  # Convert Decimal to int
         raise TypeError
 
     def add_inventory_item(self, inventory_item):
