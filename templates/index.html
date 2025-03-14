@@ -93,8 +93,24 @@
   <script src="../static/assets/js/cart.js"></script>
   <script src='//eu.fw-cdn.com/13052603/1004005.js' chat='true' widgetId='d668ec7e-38eb-4747-87ee-02179f0b9037'></script>  
   <script>
-    sessionStorage.setItem('user_id', 'default_user'); // Replace with actual user ID logic
+    // Redirect to signin page if user_id is not set in session
+    if (!sessionStorage.getItem('user_id')) {
+      window.location.href = '/signin.html';
+    }
 
+    // Ensure user_id is set in session
+    const userId = sessionStorage.getItem('user_id');
+
+    // Fetch cart based on user ID
+    fetch(`/api/cart/${userId}`)
+      .then(response => response.json())
+      .then(data => {
+        sessionStorage.setItem('cart', JSON.stringify(data.cart || []));
+        updateCart();
+      })
+      .catch(error => console.error('Error fetching cart:', error));
+
+    // Keep the window.fcWidget.init
     window.fcWidget.init({
       token: WEB_CHAT_TOKEN,
       host: WEB_HOST_URL,
@@ -107,16 +123,6 @@
         }
       }
     });
-
-    // Fetch cart based on user ID
-    const userId = sessionStorage.getItem('user_id');
-    fetch(`https://dozmuvdice.execute-api.us-east-2.amazonaws.com/api/cart/${userId}`)
-      .then(response => response.json())
-      .then(cart => {
-        sessionStorage.setItem('cart', JSON.stringify(cart));
-        updateCart();
-      })
-      .catch(error => console.error('Error fetching cart:', error));
   </script>
 </body>
 </html>

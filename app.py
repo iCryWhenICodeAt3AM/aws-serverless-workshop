@@ -13,8 +13,6 @@ from flask import Flask, render_template, jsonify, request, session
 from models.flaskProductModel import FlaskProductModel
 import boto3
 import requests
-from pubnub.pnconfiguration import PNConfiguration
-from pubnub.pubnub import PubNub
 
 app = Flask(__name__, static_folder='static')
 app.secret_key = 'supersecretkey'
@@ -33,12 +31,6 @@ API_BASE_URL = os.getenv('API_BASE_URL')
 if not API_BASE_URL:
     raise ValueError("API_BASE_URL environment variable is not set")
 
-pnconfig = PNConfiguration()
-pnconfig.subscribe_key = os.getenv('PUBNUB_SUBSCRIBE_KEY')
-pnconfig.publish_key = os.getenv('PUBNUB_PUBLISH_KEY')
-pnconfig.uuid = "server-uuid"
-pubnub = PubNub(pnconfig)
-
 @app.route('/')
 def hello_world():
     return render_template('index.html', web_chat_token=os.getenv('WEB_CHAT_TOKEN'), web_host_url=os.getenv('WEB_HOST_URL'), unique_site_id=os.getenv('UNIQUE_SITE_ID'), api_base_url=API_BASE_URL)
@@ -46,6 +38,11 @@ def hello_world():
 @app.route('/restaurant.html')
 def restaurant_page():
     return render_template('restaurant.html', web_chat_token=os.getenv('WEB_CHAT_TOKEN'), web_host_url=os.getenv('WEB_HOST_URL'), unique_site_id=os.getenv('UNIQUE_SITE_ID'), api_base_url=API_BASE_URL)
+
+@app.route('/signin.html')
+def signin():
+    """Render the sign-in page."""
+    return render_template('signin.html')
 
 @app.route('/api/products')
 def get_products():
@@ -87,7 +84,6 @@ def add_to_cart():
         if response.status_code == 200:
             cart = response.json()
             print(f"Successfully added to cart: {cart}")
-            # pubnub.publish().channel(user_id).message({"action": "add_to_cart", "status": "success"}).sync()
             return jsonify(cart)
         else:
             print(f"Error in add_to_cart: {response.status_code} - {response.text}")
@@ -120,6 +116,29 @@ def get_product_names():
     except Exception as e:
         print(f"Error fetching product names: {e}")
         return jsonify([])
+
+@app.route('/logout', methods=['GET'])
+def logout():
+    """Clear the session and redirect to the sign-in page."""
+    session.clear()  # Clear the session
+    return jsonify({"message": "Logged out successfully", "redirect": "/signin.html"}), 200
+
+@app.route('/api/cart/<user_id>/checkout', methods=['POST'])
+def checkout(user_id):
+    """Handle the checkout process for a user."""
+    try:
+        # Send a POST request to the checkout endpoint
+        response = requests.post(f"{API_BASE_URL}/api/cart/{user_id}/checkout")
+        if response.status_code == 200:
+            checkout_data = response.json()
+            print(f"Checkout successful for user {user_id}: {checkout_data}")
+            return jsonify(checkout_data), 200
+        else:
+            print(f"Checkout failed for user {user_id}: {response.status_code} - {response.text}")
+            return jsonify({'error': 'Failed to process checkout'}), response.status_code
+    except Exception as e:
+        print(f"Error during checkout: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
