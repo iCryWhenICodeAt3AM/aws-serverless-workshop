@@ -3,12 +3,48 @@
     <h4 class="mb-0">Your Order</h4>
   </div>
   <div class="card-body" id="cart">
+    <!-- Cart items will be dynamically generated here -->
+    <ul class="list-group">
+      <!-- Example item -->
+      <!-- <li class="list-group-item d-flex justify-content-between align-items-center">
+        2x Burger: Php 10.00
+        <span class="badge bg-primary rounded-pill">Php 20.00</span>
+      </li> -->
+    </ul>
   </div>
   <div class="card-footer bg-white">
     <div class="d-flex justify-content-between">
       <span class="fw-bold">Total</span>
-      <span class="fw-bold">$22.06</span>
+      <span class="fw-bold" id="cart-total">Php 0.00</span>
     </div>
-    <button class="btn btn-primary w-100 mt-3">Checkout</button>
+    <button class="btn btn-primary w-100 mt-3" id="checkout-button">Checkout</button>
   </div>
 </div>
+<script>
+  document.getElementById('checkout-button').addEventListener('click', () => {
+    const userId = sessionStorage.getItem('user_id');
+    if (!userId) {
+      alert('User not signed in. Redirecting to sign-in page.');
+      window.location.href = '/signin.html';
+      return;
+    }
+
+    fetch(`/api/cart/${userId}/checkout`, { method: 'POST' })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`Server error: ${response.statusText}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        alert(data.message || 'Checkout successful!');
+        sessionStorage.setItem('cart', JSON.stringify([])); // Clear cart in session storage
+        document.getElementById('cart').innerHTML = ''; // Clear cart display
+        document.getElementById('cart-total').textContent = 'Php 0.00'; // Reset total
+      })
+      .catch(error => {
+        console.error('Error during checkout:', error);
+        alert('An error occurred during checkout. Please try again.');
+      });
+  });
+</script>

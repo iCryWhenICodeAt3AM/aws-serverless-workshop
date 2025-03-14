@@ -1,23 +1,11 @@
-import os
 import csv
 
 class PadeliverModel:
     def __init__(self):
-        self.table_name = os.getenv('PADELIVER_PRODUCTS_TABLE')
-
-    def get_all_products(self):
-        # This method can be updated to fetch products from a different source if needed
-        pass
-
-    def batch_create_products(self, products):
-        # This method can be updated to create products in a different source if needed
-        pass
-
-    def batch_delete_products(self, product_ids):
-        # This method can be updated to delete products from a different source if needed
         pass
 
     def process_create_csv(self, content):
+        """Processes CSV file content and extracts product details."""
         reader = csv.DictReader(content)
         products = []
         for row in reader:
@@ -32,10 +20,10 @@ class PadeliverModel:
                 }
                 products.append(product)
             except ValueError as e:
-                print(f"Error processing row {row}: {e}")
+                print(f"❌ Error processing row {row}: {e}")
         return products
 
     def process_delete_csv(self, content):
+        """Extracts product IDs for deletion from CSV."""
         reader = csv.DictReader(content)
-        product_ids = [row['product_id'] for row in reader]
-        return product_ids
+        return [row['product_id'] for row in reader]

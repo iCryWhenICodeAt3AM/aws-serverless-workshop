@@ -1,5 +1,8 @@
+// Ensure PubNub is included
+// <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.4.29.9.min.js"></script>
+
 document.addEventListener("DOMContentLoaded", function() {
-  let cart = JSON.parse(sessionStorage.getItem('cart')) || [];
+  let cart = [];
   const userId = sessionStorage.getItem('user_id') || 'default_user'; // Replace with actual user ID logic
 
   function updateCart() {
@@ -9,6 +12,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     if (Array.isArray(cart)) {
       cart.forEach(item => {
+        const itemTotal = item.quantity * item.price;
         const cartItem = `
           <div class="cart-item py-3">
             <div class="d-flex justify-content-between">
@@ -17,7 +21,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 <p class="text-muted small mb-0">${item.description}</p>
               </div>
               <div class="text-end">
-                <span class="fw-bold">$${(item.price / 100).toFixed(2)}</span>
+                <span class="fw-bold">Php ${(itemTotal).toFixed(2)}</span>
                 <div class="btn-group btn-group-sm mt-1">
                   <button class="btn btn-outline-secondary" onclick="updateQuantity('${item.product_id}', -1)">-</button>
                   <button class="btn btn-outline-secondary" onclick="updateQuantity('${item.product_id}', 1)">+</button>
@@ -27,11 +31,11 @@ document.addEventListener("DOMContentLoaded", function() {
           </div>
         `;
         cartContainer.insertAdjacentHTML('beforeend', cartItem);
-        total += item.price * item.quantity;
+        total += itemTotal;
       });
     }
 
-    document.querySelector('.card-footer .fw-bold:last-child').textContent = `$${(total / 100).toFixed(2)}`;
+    document.querySelector('.card-footer .fw-bold:last-child').textContent = `Php ${(total).toFixed(2)}`;
     sessionStorage.setItem('cart', JSON.stringify(cart));
   }
 
@@ -43,25 +47,33 @@ document.addEventListener("DOMContentLoaded", function() {
     }
     product.quantity = quantity;
 
-    fetch('/add_to_cart', {
+    fetch(`/api/cart/${userId}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ user_id: userId, product: product })
+      body: JSON.stringify(product)
     })
-    .then(response => response.json())
-    .then(updatedCart => {
-      cart = updatedCart;
-      updateCart();
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.statusText}`);
+      }
+      return response.json();
     })
-    .catch(error => console.error('Error adding to cart:', error));
+    .then(() => {
+      // Fetch the updated cart and reload the display
+      fetchCart();
+    })
+    .catch(error => {
+      console.error('Error adding to cart:', error);
+      alert('An error occurred while adding the item to the cart. Please try again.');
+    });
   }
 
   function updateQuantity(productId, change) {
     const product = cart.find(item => item.product_id === productId);
     if (product) {
-      product.quantity += change;
+      product.quantity = parseInt(product.quantity) + change;
       if (product.quantity <= 0) {
         cart = cart.filter(item => item.product_id !== productId);
       }
@@ -70,13 +82,21 @@ document.addEventListener("DOMContentLoaded", function() {
   }
 
   function fetchCart() {
-    fetch(`/get_cart/${userId}`)
-      .then(response => response.json())
-      .then(fetchedCart => {
-        cart = fetchedCart;
+    fetch(`/api/cart/${userId}`)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`Server error: ${response.statusText}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        cart = data.cart || [];
         updateCart();
       })
-      .catch(error => console.error('Error fetching cart:', error));
+      .catch(error => {
+        console.error('Error fetching cart:', error);
+        alert('An error occurred while fetching the cart. Please try again.');
+      });
   }
 
   // Attach event listeners to Add buttons
@@ -87,7 +107,7 @@ document.addEventListener("DOMContentLoaded", function() {
         product_id: productCard.dataset.productId,
         item: productCard.querySelector('.card-title').textContent,
         description: productCard.querySelector('.card-text').textContent,
-        price: parseFloat(productCard.querySelector('.fw-bold').textContent.replace('$', '')) * 100
+        price: parseFloat(productCard.querySelector('.fw-bold').textContent.replace('Php', ''))
       };
       addToCart(product);
     }

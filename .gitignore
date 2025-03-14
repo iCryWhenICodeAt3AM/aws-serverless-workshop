@@ -26,3 +26,6 @@ node_modules/
 
 # Ignore Serverless configuration files
 serverless-config.yml
+
+# Ignore PubNub keys config file
+/static/assets/js/config.js
