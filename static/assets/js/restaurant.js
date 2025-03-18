@@ -50,7 +50,7 @@ document.addEventListener("DOMContentLoaded", function() {
                       <h5 class="card-title">${product.item}</h5>
                       <p class="card-text text-muted small">${product.product_description}</p>
                       <div class="d-flex justify-content-between align-items-center">
-                        <span class="fw-bold">$${(product.price / 100).toFixed(2)}</span>
+                        <span class="fw-bold">Php ${product.price}</span>
                         <button class="btn btn-sm btn-primary">Add</button>
                       </div>
                     </div>
