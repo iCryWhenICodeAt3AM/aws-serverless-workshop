@@ -131,3 +131,46 @@ class AWSGateway:
         except Exception as e:
             print(f"❌ Error checking if product exists: {e}")
             return False
+
+    def scan_padeliver_products(self):
+        """Retrieve all products from the PADELIVER_PRODUCTS_TABLE."""
+        response = self.padeliver_table.scan()
+        return response.get("Items", [])
+
+    def get_product_inventory(self, product_id):
+        """Fetch inventory records for a product and calculate total stock."""
+        response = self.inventory_table.query(
+            KeyConditionExpression="product_id = :product_id",
+            ExpressionAttributeValues={":product_id": product_id}
+        )
+        items = response.get("Items", [])
+        total_quantity = sum(Decimal(item.get("quantity", 0)) for item in items)
+        return {
+            "inventory_items": items,
+            "total_quantity": int(total_quantity)  # Convert to int for simplicity
+        }
+
+    def add_product(self, product):
+        """Insert a new product into the Pa-deliver products table."""
+        self.padeliver_table.put_item(Item=product)
+
+    def delete_product(self, product_id):
+        """Delete a product from the Pa-deliver products table."""
+        try:
+            self.padeliver_table.delete_item(Key={"product_id": product_id})
+        except Exception as e:
+            print(f"❌ Error deleting product: {e}")
+            raise
+
+    def delete_inventory_item(self, inventory_item):
+        """Delete an inventory item from the inventory table."""
+        try:
+            self.inventory_table.delete_item(
+                Key={
+                    "product_id": inventory_item["product_id"],
+                    "datetime": inventory_item["datetime"]
+                }
+            )
+        except Exception as e:
+            print(f"❌ Error deleting inventory item: {e}")
+            raise

@@ -83,11 +83,35 @@ functions:
       - httpApi:
           path: /api/cart/{user_id}/formatted
           method: get
+  getPadeliverProductsWithStock:
+    handler: handlers/padeliverHandler.get_padeliver_products_with_stock
+    events:
+      - httpApi:
+          path: /api/padeliver-products-with-stock
+          method: get
+  addPadeliverProduct:
+    handler: handlers/padeliverHandler.add_padeliver_product
+    events:
+      - httpApi:
+          path: /api/padeliver-product
+          method: post
+  editPadeliverProduct:
+    handler: handlers/padeliverHandler.edit_padeliver_product
+    events:
+      - httpApi:
+          path: /api/padeliver-product
+          method: put
+  deletePadeliverProduct:
+    handler: handlers/padeliverHandler.delete_padeliver_product
+    events:
+      - httpApi:
+          path: /api/padeliver-product
+          method: delete
 
 custom:
   prune:
     automatic: true
-    number: 3  # Keep only the latest 3 deployments
+    number: 3  # Keep only the latest 3 versions of each function
   serverless-offline:
     httpPort: 3000  # Enable local testing
   exclude:
@@ -107,58 +131,58 @@ plugins:
   - serverless-offline  # Added for local testing
   - serverless-dotenv-plugin  # Load environment variables from .env
 
-resources:
-  Resources:
-    ProductsTable:
-      Type: AWS::DynamoDB::Table
-      Properties:
-        TableName: ${env:PRODUCTS_TABLE}
-        AttributeDefinitions:
-          - AttributeName: product_id
-            AttributeType: S
-        KeySchema:
-          - AttributeName: product_id
-            KeyType: HASH
-        BillingMode: PAY_PER_REQUEST
-        StreamSpecification:
-          StreamViewType: NEW_IMAGE
-    ProductsQueue:
-      Type: AWS::SQS::Queue
-      Properties:
-        QueueName: products-queue-rey-sqs
-        VisibilityTimeout: 30
-        MessageRetentionPeriod: 86400  # Messages are kept for 1 day
-        RedrivePolicy:
-          deadLetterTargetArn: !GetAtt ProductsDeadLetterQueue.Arn
-          maxReceiveCount: 5
-    ProductsDeadLetterQueue:
-      Type: AWS::SQS::Queue
-      Properties:
-        QueueName: products-queue-rey-dlq
-        MessageRetentionPeriod: 1209600  # Messages kept for 14 days
-    ProductCreationEventRule:
-      Type: AWS::Events::Rule
-      Properties:
-        EventBusName: custom-rey-event-bus
-        EventPattern:
-          source:
-            - "com.rey.products"
-          detail-type:
-            - "create_product"
-        State: ENABLED
-    UserCartsTable:
-      Type: AWS::DynamoDB::Table
-      Properties:
-        TableName: user_carts
-        AttributeDefinitions:
-          - AttributeName: user_id
-            AttributeType: S
-        KeySchema:
-          - AttributeName: user_id
-            KeyType: HASH
-        BillingMode: PAY_PER_REQUEST
-    CustomResourceLogGroup:
-      Type: AWS::Logs::LogGroup
-      Properties:
-        LogGroupName: /aws/lambda/${self:service}-${self:provider.stage}-custom-resource-existing-s3-${sls:instanceId}
-        RetentionInDays: 14
+# resources:
+#   Resources:
+#     ProductsTable:
+#       Type: AWS::DynamoDB::Table
+#       Properties:
+#         TableName: ${env:PRODUCTS_TABLE}
+#         AttributeDefinitions:
+#           - AttributeName: product_id
+#             AttributeType: S
+#         KeySchema:
+#           - AttributeName: product_id
+#             KeyType: HASH
+#         BillingMode: PAY_PER_REQUEST
+#         StreamSpecification:
+#           StreamViewType: NEW_IMAGE
+#     ProductsQueue:
+#       Type: AWS::SQS::Queue
+#       Properties:
+#         QueueName: products-queue-rey-sqs
+#         VisibilityTimeout: 30
+#         MessageRetentionPeriod: 86400  # Messages are kept for 1 day
+#         RedrivePolicy:
+#           deadLetterTargetArn: !GetAtt ProductsDeadLetterQueue.Arn
+#           maxReceiveCount: 5
+#     ProductsDeadLetterQueue:
+#       Type: AWS::SQS::Queue
+#       Properties:
+#         QueueName: products-queue-rey-dlq
+#         MessageRetentionPeriod: 1209600  # Messages kept for 14 days
+#     ProductCreationEventRule:
+#       Type: AWS::Events::Rule
+#       Properties:
+#         EventBusName: custom-rey-event-bus
+#         EventPattern:
+#           source:
+#             - "com.rey.products"
+#           detail-type:
+#             - "create_product"
+#         State: ENABLED
+#     UserCartsTable:
+#       Type: AWS::DynamoDB::Table
+#       Properties:
+#         TableName: user_carts
+#         AttributeDefinitions:
+#           - AttributeName: user_id
+#             AttributeType: S
+#         KeySchema:
+#           - AttributeName: user_id
+#             KeyType: HASH
+#         BillingMode: PAY_PER_REQUEST
+#     CustomResourceLogGroup:
+#       Type: AWS::Logs::LogGroup
+#       Properties:
+#         LogGroupName: /aws/lambda/${self:service}-${self:provider.stage}-custom-resource-existing-s3-${sls:instanceId}
+#         RetentionInDays: 14

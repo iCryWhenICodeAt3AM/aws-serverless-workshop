@@ -2,6 +2,7 @@ import os
 import json
 from datetime import datetime
 from decimal import Decimal
+from gateways import dynamodb_gateway
 from gateways.awsGateway import AWSGateway
 from models.padeliverModel import PadeliverModel
 from handlers.cartHandler import get_cart
@@ -219,4 +220,174 @@ def add_padeliver_inventory(event, context):
         return {
             "statusCode": 500,
             "headers": {"Content-Type": "application/json"},
-            "body": json.dumps({"message": f"Error adding inventory: {str(e)}"})}
+            "body": json.dumps({"message": f"Error adding inventory: {str(e)}"})
+        }
+
+def get_padeliver_products_with_stock(event, context):
+    """Handler to fetch Pa-deliver products along with their stock."""
+    try:
+        # Fetch all products from the PADELIVER_PRODUCTS_TABLE
+        products = aws_gateway.scan_padeliver_products()
+
+        # Fetch stock for each product
+        for product in products:
+            product_id = product["product_id"]
+            inventory_data = aws_gateway.get_product_inventory(product_id)
+            product["stock"] = inventory_data["total_quantity"]
+
+        return {
+            "statusCode": 200,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps(products)
+        }
+    except Exception as e:
+        return {
+            "statusCode": 500,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"message": f"Error fetching Pa-deliver products with stock: {str(e)}"})
+        }
+
+def add_padeliver_product(event, context):
+    """Handler for adding a new Pa-deliver product."""
+    body = json.loads(event.get("body", "{}"), parse_float=Decimal)
+    product_id = body.get("product_id")
+    item = body.get("item")
+    description = body.get("description")
+    price = body.get("price")
+    brand = body.get("brand")
+    category = body.get("category")
+
+    # Validate input
+    if not product_id or not item or not description or not price or not brand or not category:
+        return {
+            "statusCode": 400,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"message": "Missing required fields: product_id, item, description, price, brand, or category"})
+        }
+
+    # Check if product_id or item already exists
+    if aws_gateway.product_exists(product_id):
+        return {
+            "statusCode": 400,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"message": "Product ID already exists", "invalid_field": "product_id"})
+        }
+
+    existing_product_by_name = aws_gateway.get_product_name(item)
+    if existing_product_by_name:
+        return {
+            "statusCode": 400,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"message": "Product name already exists", "invalid_field": "item"})
+        }
+
+    # Create the new product
+    new_product = {
+        "product_id": product_id,
+        "item": item,
+        "product_description": description,
+        "price": str(price),  # Ensure price is stored as a string
+        "brand": brand,  # Include brand
+        "category": category,  # Include category
+    }
+
+    try:
+        aws_gateway.add_product(new_product)
+        return {
+            "statusCode": 200,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"message": "Product added successfully", "product": new_product})
+        }
+    except Exception as e:
+        return {
+            "statusCode": 500,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"message": f"Error adding product: {str(e)}"})
+        }
+
+def edit_padeliver_product(event, context):
+    """Handler for editing a Pa-deliver product and updating related inventory."""
+    body = json.loads(event.get("body", "{}"), parse_float=Decimal)
+    old_product_id = body.get("old_product_id")
+    new_product_id = body.get("new_product_id")
+    updates = body.get("updates", {})
+
+    if not old_product_id or not new_product_id:
+        return {
+            "statusCode": 400,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"message": "Missing old_product_id or new_product_id"})
+        }
+
+    # Check if the new product_id already exists
+    if aws_gateway.product_exists(new_product_id):
+        return {
+            "statusCode": 400,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"message": "New product_id already exists", "invalid_field": "new_product_id"})
+        }
+
+    try:
+        # Update the product in the products table
+        product = aws_gateway.view_product(old_product_id)
+        if product["statusCode"] != 200:
+            return product
+
+        product_data = json.loads(product["body"])
+        product_data.update(updates)
+        product_data["product_id"] = new_product_id
+
+        # Delete the old product and add the updated product
+        aws_gateway.delete_product(old_product_id)
+        aws_gateway.add_product(product_data)
+
+        # Update all inventory records with the new product_id
+        inventory_data = aws_gateway.get_product_inventory(old_product_id)
+        for inventory_item in inventory_data["inventory_items"]:
+            inventory_item["product_id"] = new_product_id
+            aws_gateway.add_inventory_item(inventory_item)
+
+        return {
+            "statusCode": 200,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"message": "Product and inventory updated successfully"})
+        }
+    except Exception as e:
+        return {
+            "statusCode": 500,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"message": f"Error editing product: {str(e)}"})
+        }
+
+def delete_padeliver_product(event, context):
+    """Handler for deleting a Pa-deliver product and its related inventory."""
+    body = json.loads(event.get("body", "{}"))
+    product_id = body.get("product_id")
+
+    if not product_id:
+        return {
+            "statusCode": 400,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"message": "Missing product_id"})
+        }
+
+    try:
+        # Delete the product
+        aws_gateway.delete_product(product_id)
+
+        # Delete all related inventory records
+        inventory_data = aws_gateway.get_product_inventory(product_id)
+        for inventory_item in inventory_data["inventory_items"]:
+            aws_gateway.delete_inventory_item(inventory_item)
+
+        return {
+            "statusCode": 200,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"message": "Product and related inventory deleted successfully"})
+        }
+    except Exception as e:
+        return {
+            "statusCode": 500,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"message": f"Error deleting product: {str(e)}"})
+        }
