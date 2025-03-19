@@ -21,7 +21,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 <p class="text-muted small mb-0">${item.description}</p>
               </div>
               <div class="text-end">
-                <span class="fw-bold">Php ${(itemTotal).toFixed(2)}</span>
+                <span class="fw-bold">Php ${itemTotal}</span>
                 <div class="btn-group btn-group-sm mt-1">
                   <button class="btn btn-outline-secondary" onclick="updateQuantity('${item.product_id}', -1)">-</button>
                   <button class="btn btn-outline-secondary" onclick="updateQuantity('${item.product_id}', 1)">+</button>
@@ -35,7 +35,7 @@ document.addEventListener("DOMContentLoaded", function() {
       });
     }
 
-    document.querySelector('.card-footer .fw-bold:last-child').textContent = `Php ${(total).toFixed(2)}`;
+    document.querySelector('.card-footer .fw-bold:last-child').textContent = `Php ${total}`;
     sessionStorage.setItem('cart', JSON.stringify(cart));
   }
 

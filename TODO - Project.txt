@@ -1,0 +1,7 @@
+TODO:
+
+1. Admin Page - For product manipulation
+2. Freshchat Conversation - Per user
+3. Freshchat and Webpage Unified Login Page
+4. In-Cart Purchase Select - Buy what you select only
+5. (If may time pa) Rider interface: (order status)
