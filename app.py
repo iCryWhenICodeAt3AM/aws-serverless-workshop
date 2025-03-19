@@ -39,10 +39,40 @@ def hello_world():
 def restaurant_page():
     return render_template('restaurant.html', web_chat_token=os.getenv('WEB_CHAT_TOKEN'), web_host_url=os.getenv('WEB_HOST_URL'), unique_site_id=os.getenv('UNIQUE_SITE_ID'), api_base_url=API_BASE_URL)
 
-@app.route('/signin.html')
+@app.route('/signin.html', methods=['GET', 'POST'])
 def signin():
-    """Render the sign-in page."""
+    """Render the sign-in page or handle sign-in logic."""
+    if request.method == 'POST':
+        username = request.json.get('username', '').lower()
+
+        # Validate username
+        if not username:
+            return jsonify({'error': 'Username is required.'}), 400
+        if not username.isalnum():
+            return jsonify({'error': 'Invalid username. Only lowercase letters and numbers are allowed.'}), 400
+
+        # Check if username is "admin"
+        if username == 'admin':
+            key_code = request.json.get('key_code', '')
+            if not key_code:
+                return jsonify({'error': 'Key code is required for admin.'}), 400
+            if key_code != 'hello':
+                return jsonify({'error': 'Invalid key code. Access denied.'}), 403
+            session['user_id'] = username
+            return jsonify({'redirect': '/dashboard'}), 200
+
+        # Store username in session and redirect other users to the index page
+        session['user_id'] = username
+        return jsonify({'redirect': '/'}), 200
+
     return render_template('signin.html')
+
+@app.route('/dashboard')
+def dashboard():
+    """Render the admin dashboard."""
+    if 'user_id' not in session or session['user_id'] != 'admin':
+        return jsonify({'error': 'Unauthorized access'}), 403
+    return render_template('dashboard.html')
 
 @app.route('/api/products')
 def get_products():

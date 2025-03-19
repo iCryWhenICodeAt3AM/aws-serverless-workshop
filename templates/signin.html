@@ -105,7 +105,7 @@
     <nav class="navbar navbar-expand-lg navbar-light">
         <div class="container">
             <a class="navbar-brand" href="#">
-                <img src="/api/placeholder/40/40" alt="Pa-deliver logo" width="40" height="40">
+                <img src="../static/assets/logo.png" alt="Pa-deliver logo" width="40" height="40">
                 Pa-deliver
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
@@ -117,7 +117,7 @@
                         <a class="nav-link" href="#">Home</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href=   #">Restaurants</a>
+                        <a class="nav-link" href="#">Restaurants</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="#">Promotions</a>
@@ -126,12 +126,6 @@
                         <a class="nav-link" href="#">About</a>
                     </li>
                 </ul>
-                <div class="d-flex">
-                    <button class="btn btn-outline-secondary me-2 cart-button">
-                        <i class="bi bi-cart"></i> 🛒
-                        <span class="cart-count">3</span>
-                    </button>
-                </div>
             </div>
         </div>
     </nav>
@@ -162,7 +156,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <!-- Custom JavaScript for dynamic functionality -->
     <script>
-        document.getElementById('signin-form').addEventListener('submit', function(event) {
+        document.getElementById('signin-form').addEventListener('submit', async function(event) {
             event.preventDefault();
             const username = document.getElementById('username').value;
 
@@ -172,9 +166,42 @@
                 return;
             }
 
-            // Set user_id in session storage
-            sessionStorage.setItem('user_id', username);
-            window.location.href = '/';
+            // Prepare the payload
+            const payload = { username: username };
+
+            // If the username is "admin", prompt for the key code
+            if (username === 'admin') {
+                const keyCode = prompt('Enter the key code:');
+                if (!keyCode) {
+                    alert('Key code is required.');
+                    return;
+                }
+                payload.key_code = keyCode;
+            }
+
+            // Send the POST request to the server
+            try {
+                const response = await fetch('/signin.html', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    // Store the username in sessionStorage
+                    sessionStorage.setItem('user_id', username);
+
+                    // Redirect based on the server's response
+                    window.location.href = result.redirect;
+                } else {
+                    alert(result.error || 'Sign-in failed.');
+                }
+            } catch (error) {
+                console.error('Error during sign-in:', error);
+                alert('An error occurred. Please try again.');
+            }
         });
     </script>
 </body>
