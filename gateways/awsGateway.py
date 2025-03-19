@@ -1,8 +1,13 @@
 import os
 import boto3
 import json
+import logging
 from decimal import Decimal
 from boto3.dynamodb.conditions import Key, Attr
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class AWSGateway:
     def __init__(self):
@@ -109,7 +114,6 @@ class AWSGateway:
         except Exception as e:
             print(f"❌ Error fetching product: {e}")
             return {"statusCode": 500, "body": json.dumps({"message": f"Error fetching product: {str(e)}"})}
-
     def decimal_default(self, obj):
         if isinstance(obj, Decimal):
             return int(obj)  # Convert Decimal to int
@@ -152,25 +156,45 @@ class AWSGateway:
 
     def add_product(self, product):
         """Insert a new product into the Pa-deliver products table."""
-        self.padeliver_table.put_item(Item=product)
+        try:
+            self.padeliver_table.put_item(Item=product)
+            logger.info(f"Product added successfully: {product['product_id']}")
+        except Exception as e:
+            logger.error(f"Error adding product {product['product_id']}: {e}")
+            raise
 
     def delete_product(self, product_id):
         """Delete a product from the Pa-deliver products table."""
         try:
             self.padeliver_table.delete_item(Key={"product_id": product_id})
+            logger.info(f"Product deleted successfully: {product_id}")
         except Exception as e:
-            print(f"❌ Error deleting product: {e}")
+            logger.error(f"Error deleting product {product_id}: {e}")
             raise
 
-    def delete_inventory_item(self, inventory_item):
-        """Delete an inventory item from the inventory table."""
+    def delete_inventory_item(self, product_id, datetime):
+        """Delete an inventory item from the inventory table using product_id and datetime."""
         try:
             self.inventory_table.delete_item(
                 Key={
-                    "product_id": inventory_item["product_id"],
-                    "datetime": inventory_item["datetime"]
+                    "product_id": product_id,
+                    "datetime": datetime
                 }
             )
+            logger.info(f"Inventory item deleted successfully: product_id={product_id}, datetime={datetime}")
         except Exception as e:
-            print(f"❌ Error deleting inventory item: {e}")
+            logger.error(f"Error deleting inventory item: product_id={product_id}, datetime={datetime}, error={e}")
+            raise
+
+    def update_product(self, product_id, update_expression, expression_attribute_values):
+        """Update a product in the Pa-deliver products table."""
+        try:
+            self.padeliver_table.update_item(
+                Key={"product_id": product_id},
+                UpdateExpression=update_expression,
+                ExpressionAttributeValues=expression_attribute_values
+            )
+            logger.info(f"Product updated successfully: {product_id}")
+        except Exception as e:
+            logger.error(f"Error updating product {product_id}: {e}")
             raise

@@ -1,5 +1,6 @@
 import os
 import json
+import logging
 from datetime import datetime
 from decimal import Decimal
 from gateways import dynamodb_gateway
@@ -8,6 +9,10 @@ from models.padeliverModel import PadeliverModel
 from handlers.cartHandler import get_cart
 import boto3
 from boto3.dynamodb.conditions import Key
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 aws_gateway = AWSGateway()
 padeliver_model = PadeliverModel()
@@ -233,14 +238,21 @@ def get_padeliver_products_with_stock(event, context):
         for product in products:
             product_id = product["product_id"]
             inventory_data = aws_gateway.get_product_inventory(product_id)
-            product["stock"] = inventory_data["total_quantity"]
+            product["stock"] = int(inventory_data["total_quantity"])  # Convert Decimal to int
+
+        # Convert all Decimal values in the products list to JSON-serializable types
+        def decimal_to_serializable(obj):
+            if isinstance(obj, Decimal):
+                return int(obj)  # Convert Decimal to int
+            raise TypeError
 
         return {
             "statusCode": 200,
             "headers": {"Content-Type": "application/json"},
-            "body": json.dumps(products)
+            "body": json.dumps(products, default=decimal_to_serializable)
         }
     except Exception as e:
+        logger.error(f"Error fetching Pa-deliver products with stock: {e}")
         return {
             "statusCode": 500,
             "headers": {"Content-Type": "application/json"},
@@ -312,40 +324,53 @@ def edit_padeliver_product(event, context):
     new_product_id = body.get("new_product_id")
     updates = body.get("updates", {})
 
-    if not old_product_id or not new_product_id:
+    if not old_product_id:
         return {
             "statusCode": 400,
             "headers": {"Content-Type": "application/json"},
-            "body": json.dumps({"message": "Missing old_product_id or new_product_id"})
-        }
-
-    # Check if the new product_id already exists
-    if aws_gateway.product_exists(new_product_id):
-        return {
-            "statusCode": 400,
-            "headers": {"Content-Type": "application/json"},
-            "body": json.dumps({"message": "New product_id already exists", "invalid_field": "new_product_id"})
+            "body": json.dumps({"message": "old_product_id must be provided"})
         }
 
     try:
-        # Update the product in the products table
+        # Fetch the old product
         product = aws_gateway.view_product(old_product_id)
         if product["statusCode"] != 200:
             return product
 
         product_data = json.loads(product["body"])
-        product_data.update(updates)
-        product_data["product_id"] = new_product_id
 
-        # Delete the old product and add the updated product
-        aws_gateway.delete_product(old_product_id)
-        aws_gateway.add_product(product_data)
+        # If a new product_id is provided, move the product to the new product_id
+        if new_product_id:
+            # Check if the new product_id already exists
+            if aws_gateway.product_exists(new_product_id):
+                return {
+                    "statusCode": 400,
+                    "headers": {"Content-Type": "application/json"},
+                    "body": json.dumps({"message": "New product_id already exists", "invalid_field": "new_product_id"})
+                }
 
-        # Update all inventory records with the new product_id
-        inventory_data = aws_gateway.get_product_inventory(old_product_id)
-        for inventory_item in inventory_data["inventory_items"]:
-            inventory_item["product_id"] = new_product_id
-            aws_gateway.add_inventory_item(inventory_item)
+            # Update the product_id and apply updates
+            product_data["product_id"] = new_product_id
+            product_data.update(updates)
+
+            # Delete the old product
+            aws_gateway.delete_product(old_product_id)
+
+            # Add the updated product with the new product_id
+            aws_gateway.add_product(product_data)
+
+            # Update all inventory records with the new product_id
+            inventory_data = aws_gateway.get_product_inventory(old_product_id)
+            for inventory_item in inventory_data["inventory_items"]:
+                inventory_item["product_id"] = new_product_id
+                aws_gateway.add_inventory_item(inventory_item)
+
+            logger.info(f"Product ID changed from {old_product_id} to {new_product_id} with updates: {updates}")
+        else:
+            # Apply updates to the existing product_id
+            product_data.update(updates)
+            aws_gateway.add_product(product_data)
+            logger.info(f"Product {old_product_id} updated with: {updates}")
 
         return {
             "statusCode": 200,
@@ -353,6 +378,7 @@ def edit_padeliver_product(event, context):
             "body": json.dumps({"message": "Product and inventory updated successfully"})
         }
     except Exception as e:
+        logger.error(f"Error editing product {old_product_id}: {e}")
         return {
             "statusCode": 500,
             "headers": {"Content-Type": "application/json"},
@@ -374,11 +400,16 @@ def delete_padeliver_product(event, context):
     try:
         # Delete the product
         aws_gateway.delete_product(product_id)
+        logger.info(f"Product deleted successfully: {product_id}")
 
         # Delete all related inventory records
         inventory_data = aws_gateway.get_product_inventory(product_id)
+        logger.info(f"Product inventory deleted successfully: {inventory_data}")
         for inventory_item in inventory_data["inventory_items"]:
-            aws_gateway.delete_inventory_item(inventory_item)
+            aws_gateway.delete_inventory_item(
+                product_id=inventory_item["product_id"],
+                datetime=inventory_item["datetime"]
+            )
 
         return {
             "statusCode": 200,
