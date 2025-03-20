@@ -36,24 +36,36 @@ def get_padeliver_products(event, context):
         }
 
 def process_padeliver_csv(event, context):
+    """Handler for processing CSV files uploaded to S3 for batch creation or deletion of Pa-deliver products."""
     bucket_name = os.getenv('S3_BUCKET_NAME')
-    
+
     for record in event['Records']:
         key = record['s3']['object']['key']
+        logger.info(f"Processing file from S3: bucket={bucket_name}, key={key}")
+
+        # Fetch the content of the uploaded file
         content = aws_gateway.get_s3_object(bucket_name, key)
         if content:
-            if key.startswith('for_padeliver_create/'):
-                products = padeliver_model.process_create_csv(content)
-                aws_gateway.batch_create_products(products)
-            elif key.startswith('for_padeliver_delete/'):
-                product_ids = padeliver_model.process_delete_csv(content)
-                aws_gateway.batch_delete_products(product_ids)
+            try:
+                if key.startswith('for_padeliver_create/'):
+                    # Process the CSV for batch creation
+                    products = padeliver_model.process_create_csv(content)
+                    aws_gateway.batch_create_products(products)
+                    logger.info(f"Batch created {len(products)} products from file: {key}")
+                elif key.startswith('for_padeliver_delete/'):
+                    # Process the CSV for batch deletion
+                    product_ids = padeliver_model.process_delete_csv(content)
+                    aws_gateway.batch_delete_products(product_ids)
+                    logger.info(f"Batch deleted {len(product_ids)} products from file: {key}")
+            except Exception as e:
+                logger.error(f"Error processing file {key}: {e}")
+        else:
+            logger.error(f"Failed to fetch content for file: {key}")
+
     return {
         'statusCode': 200,
-        'body': json.dumps({'message': 'CSV processed successfully'}),
-        'headers': {
-            'Content-Type': 'application/json',
-        },
+        'body': json.dumps({'message': 'CSV files processed successfully'}),
+        'headers': {'Content-Type': 'application/json'},
     }
 
 def get_padeliver_product_names(event, context):
@@ -421,4 +433,42 @@ def delete_padeliver_product(event, context):
             "statusCode": 500,
             "headers": {"Content-Type": "application/json"},
             "body": json.dumps({"message": f"Error deleting product: {str(e)}"})
+        }
+
+def batch_create_padeliver_products(event, context):
+    """Handler for batch creating Pa-deliver products."""
+    try:
+        # Parse the request body
+        body = json.loads(event.get("body", "[]"), parse_float=Decimal)
+        if not isinstance(body, list) or not body:
+            return {
+                "statusCode": 400,
+                "headers": {"Content-Type": "application/json"},
+                "body": json.dumps({"message": "Invalid input: Expected a non-empty list of products"})
+            }
+
+        # Validate and process each product
+        for product in body:
+            if not product.get("product_id") or not product.get("item"):
+                return {
+                    "statusCode": 400,
+                    "headers": {"Content-Type": "application/json"},
+                    "body": json.dumps({"message": "Each product must have a product_id and item"})
+                }
+
+        # Batch create products
+        aws_gateway.batch_create_products(body)
+        logger.info(f"Batch created {len(body)} Pa-deliver products successfully.")
+
+        return {
+            "statusCode": 200,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"message": f"Batch created {len(body)} products successfully"})
+        }
+    except Exception as e:
+        logger.error(f"Error batch creating Pa-deliver products: {e}")
+        return {
+            "statusCode": 500,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"message": f"Error batch creating products: {str(e)}"})
         }

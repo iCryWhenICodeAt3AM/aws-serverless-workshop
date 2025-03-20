@@ -26,12 +26,15 @@ class AWSGateway:
             return []
 
     def batch_create_products(self, products):
+        """Batch create products in the Pa-deliver products table."""
         try:
             with self.padeliver_table.batch_writer() as batch:
                 for product in products:
                     batch.put_item(Item=product)
+            logger.info(f"Batch created {len(products)} products successfully.")
         except Exception as e:
-            print(f"Error batch creating products: {e}")
+            logger.error(f"Error batch creating products: {e}")
+            raise
 
     def batch_delete_products(self, product_ids):
         try:
