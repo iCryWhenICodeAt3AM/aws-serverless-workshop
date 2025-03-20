@@ -310,7 +310,7 @@ def add_padeliver_product(event, context):
         "product_id": product_id,
         "item": item,
         "product_description": description,
-        "price": str(price),  # Ensure price is stored as a string
+        "price": price,  # Ensure price is stored as a string
         "brand": brand,  # Include brand
         "category": category,  # Include category
     }
@@ -334,7 +334,7 @@ def edit_padeliver_product(event, context):
     body = json.loads(event.get("body", "{}"), parse_float=Decimal)
     old_product_id = body.get("old_product_id")
     new_product_id = body.get("new_product_id")
-    updates = body.get("updates", {})
+    updates = {key: value for key, value in body.items() if key not in ["old_product_id", "new_product_id"]}
 
     if not old_product_id:
         return {
