@@ -264,23 +264,41 @@ def get_all_orders(event, context):
 
 def update_order_status(event, context):
     """Handler for updating the status of a specific order."""
-    body = json.loads(event['body'])
-    order_id = body.get('order_id')
-    customer_name = body.get('customer_name')  # Equivalent to user_id
-    new_status = body.get('status')
-
-    if not order_id or not customer_name or not new_status:
-        return {
-            "statusCode": 400,
-            "headers": {"Content-Type": "application/json"},
-            "body": json.dumps({"message": "Missing required fields: order_id, customer_name, or status"})
-        }
-
     try:
-        # Update the order status in the orders table
+        # ✅ Parse request body
+        body = json.loads(event.get('body', '{}'))
+        order_id = body.get('order_id')
+        customer_name = body.get('customer_name')  # Equivalent to user_id
+        new_status = body.get('status')
+
+        # ✅ Validate request payload
+        if not order_id or not customer_name or not new_status:
+            return {
+                "statusCode": 400,
+                "headers": {"Content-Type": "application/json"},
+                "body": json.dumps({"message": "Missing required fields: order_id, customer_name, or status"})
+            }
+
+        # ✅ Ensure order exists and belongs to the correct customer
+        existing_order = orders_table.get_item(Key={'order_id': order_id})
+        
+        if 'Item' not in existing_order:
+            return {
+                "statusCode": 404,
+                "headers": {"Content-Type": "application/json"},
+                "body": json.dumps({"message": "Order not found"})
+            }
+
+        if existing_order['Item'].get('customer_name') != customer_name:
+            return {
+                "statusCode": 403,
+                "headers": {"Content-Type": "application/json"},
+                "body": json.dumps({"message": "Unauthorized: Order does not belong to the specified customer"})
+            }
+
+        # ✅ Update order status
         response = orders_table.update_item(
             Key={'order_id': order_id},
-            ConditionExpression=Key('customer_name').eq(customer_name),
             UpdateExpression="SET #status = :new_status",
             ExpressionAttributeNames={'#status': 'status'},
             ExpressionAttributeValues={':new_status': new_status},
@@ -290,8 +308,12 @@ def update_order_status(event, context):
         return {
             "statusCode": 200,
             "headers": {"Content-Type": "application/json"},
-            "body": json.dumps({"message": "Order status updated successfully", "updatedAttributes": response['Attributes']})
+            "body": json.dumps({
+                "message": "Order status updated successfully",
+                "updatedAttributes": response.get('Attributes', {})
+            })
         }
+
     except Exception as e:
         return {
             "statusCode": 500,
