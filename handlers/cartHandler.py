@@ -279,8 +279,10 @@ def update_order_status(event, context):
     try:
         # Update the order status in the orders table
         response = orders_table.update_item(
-            Key={'order_id': order_id},
-            ConditionExpression=Key('customer_name').eq(customer_name),
+            Key={
+                'order_id': order_id,
+                'customer_name': customer_name
+            },
             UpdateExpression="SET #status = :new_status",
             ExpressionAttributeNames={'#status': 'status'},
             ExpressionAttributeValues={':new_status': new_status},
@@ -303,7 +305,7 @@ def generate_receipt(event, context):
     """Handler for generating a receipt for a specific order."""
     body = json.loads(event['body'])
     order_id = body.get('order_id')
-    customer_name = body.get('customer_name')  # Equivalent to user_id
+    customer_name = body.get('customer_name')
 
     if not order_id or not customer_name:
         return {
@@ -313,25 +315,33 @@ def generate_receipt(event, context):
         }
 
     try:
-        # Fetch the order from the orders table
-        response = orders_table.get_item(Key={'order_id': order_id})
+        # Fetch the order from the DynamoDB table
+        response = orders_table.get_item(Key={'order_id': order_id, 'customer_name': customer_name})
         order = response.get('Item')
 
-        if not order or order.get('customer_name') != customer_name:
+        if not order:
             return {
                 "statusCode": 404,
                 "headers": {"Content-Type": "application/json"},
-                "body": json.dumps({"message": "Order not found or does not belong to the customer"})
+                "body": json.dumps({"message": "Order not found"})
             }
+
+        # Update order status to "Received"
+        orders_table.update_item(
+            Key={'order_id': order_id, 'customer_name': customer_name},
+            UpdateExpression="SET #status = :new_status",
+            ExpressionAttributeNames={"#status": "status"},
+            ExpressionAttributeValues={":new_status": "Received"}
+        )
 
         # Generate receipt content
         receipt_content = f"Order Receipt\n\nOrder ID: {order_id}\nCustomer Name: {customer_name}\n"
-        receipt_content += f"Order Date: {order['order_datetime']}\nStatus: {order['status']}\n\nItems:\n"
+        receipt_content += f"Order Date: {order['order_datetime']}\nStatus: Received\n\nItems:\n"
 
-        for item in order['items']:
+        for item in order.get('items', []):
             receipt_content += f"- {item['quantity']}x {item['item']} @ {item['price']} each\n"
 
-        receipt_content += f"\nTotal Items: {len(order['items'])}\n"
+        receipt_content += f"\nTotal Items: {len(order.get('items', []))}\n"
 
         # Upload the receipt to S3
         receipt_key = f"receipts/{order_id}.txt"
@@ -355,3 +365,4 @@ def generate_receipt(event, context):
             "headers": {"Content-Type": "application/json"},
             "body": json.dumps({"message": f"Error generating receipt: {str(e)}"})
         }
+
