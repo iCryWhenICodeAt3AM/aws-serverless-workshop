@@ -1,8 +1,13 @@
 import os
 import boto3
 import json
+import logging
 from decimal import Decimal
 from boto3.dynamodb.conditions import Key, Attr
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class AWSGateway:
     def __init__(self):
@@ -21,12 +26,15 @@ class AWSGateway:
             return []
 
     def batch_create_products(self, products):
+        """Batch create products in the Pa-deliver products table."""
         try:
             with self.padeliver_table.batch_writer() as batch:
                 for product in products:
                     batch.put_item(Item=product)
+            logger.info(f"Batch created {len(products)} products successfully.")
         except Exception as e:
-            print(f"Error batch creating products: {e}")
+            logger.error(f"Error batch creating products: {e}")
+            raise
 
     def batch_delete_products(self, product_ids):
         try:
@@ -109,7 +117,6 @@ class AWSGateway:
         except Exception as e:
             print(f"❌ Error fetching product: {e}")
             return {"statusCode": 500, "body": json.dumps({"message": f"Error fetching product: {str(e)}"})}
-
     def decimal_default(self, obj):
         if isinstance(obj, Decimal):
             return int(obj)  # Convert Decimal to int
@@ -131,3 +138,66 @@ class AWSGateway:
         except Exception as e:
             print(f"❌ Error checking if product exists: {e}")
             return False
+
+    def scan_padeliver_products(self):
+        """Retrieve all products from the PADELIVER_PRODUCTS_TABLE."""
+        response = self.padeliver_table.scan()
+        return response.get("Items", [])
+
+    def get_product_inventory(self, product_id):
+        """Fetch inventory records for a product and calculate total stock."""
+        response = self.inventory_table.query(
+            KeyConditionExpression="product_id = :product_id",
+            ExpressionAttributeValues={":product_id": product_id}
+        )
+        items = response.get("Items", [])
+        total_quantity = sum(Decimal(item.get("quantity", 0)) for item in items)
+        return {
+            "inventory_items": items,
+            "total_quantity": int(total_quantity)  # Convert to int for simplicity
+        }
+
+    def add_product(self, product):
+        """Insert a new product into the Pa-deliver products table."""
+        try:
+            self.padeliver_table.put_item(Item=product)
+            logger.info(f"Product added successfully: {product['product_id']}")
+        except Exception as e:
+            logger.error(f"Error adding product {product['product_id']}: {e}")
+            raise
+
+    def delete_product(self, product_id):
+        """Delete a product from the Pa-deliver products table."""
+        try:
+            self.padeliver_table.delete_item(Key={"product_id": product_id})
+            logger.info(f"Product deleted successfully: {product_id}")
+        except Exception as e:
+            logger.error(f"Error deleting product {product_id}: {e}")
+            raise
+
+    def delete_inventory_item(self, product_id, datetime):
+        """Delete an inventory item from the inventory table using product_id and datetime."""
+        try:
+            self.inventory_table.delete_item(
+                Key={
+                    "product_id": product_id,
+                    "datetime": datetime
+                }
+            )
+            logger.info(f"Inventory item deleted successfully: product_id={product_id}, datetime={datetime}")
+        except Exception as e:
+            logger.error(f"Error deleting inventory item: product_id={product_id}, datetime={datetime}, error={e}")
+            raise
+
+    def update_product(self, product_id, update_expression, expression_attribute_values):
+        """Update a product in the Pa-deliver products table."""
+        try:
+            self.padeliver_table.update_item(
+                Key={"product_id": product_id},
+                UpdateExpression=update_expression,
+                ExpressionAttributeValues=expression_attribute_values
+            )
+            logger.info(f"Product updated successfully: {product_id}")
+        except Exception as e:
+            logger.error(f"Error updating product {product_id}: {e}")
+            raise

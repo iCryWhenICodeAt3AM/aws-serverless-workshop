@@ -100,27 +100,6 @@ def save_product_inventory(item):
     aws_resources.product_inventory_table.put_item(Item=item)
     return {"statusCode": 200, "body": json.dumps({"message": "Product inventory record saved successfully"})}
 
-def get_product_inventory(product_id):
-    """Get all inventory records for a product by ID and sum their quantities."""
-    product = get_product(product_id)
-    if not product:
-        return {"statusCode": 404, "body": json.dumps({"message": f"Product with ID {product_id} not found."})}
-
-    response = aws_resources.product_inventory_table.query(
-        KeyConditionExpression="product_id = :product_id",
-        ExpressionAttributeValues={":product_id": product_id}
-    )
-    items = response.get("Items", [])
-    
-    # Calculate the total quantity
-    total_quantity = sum(item.get("quantity", 0) for item in items)
-    
-    return {
-        "product": product,
-        "inventory_items": items,
-        "total_quantity": total_quantity
-    }
-
 def update_product_quantity(product_id, quantity):
     """Update the quantity of a product in DynamoDB."""
     product = get_product(product_id)
