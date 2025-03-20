@@ -201,3 +201,12 @@ class AWSGateway:
         except Exception as e:
             logger.error(f"Error updating product {product_id}: {e}")
             raise
+
+    def get_all_inventory(self):
+        """Retrieve all inventory records from the inventory table."""
+        try:
+            response = self.inventory_table.scan()
+            return response.get("Items", [])
+        except Exception as e:
+            logger.error(f"Error fetching inventory: {e}")
+            raise
