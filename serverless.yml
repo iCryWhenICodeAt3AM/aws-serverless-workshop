@@ -123,6 +123,12 @@ functions:
             - prefix: for_padeliver_create/
             - suffix: .csv
           existing: true  # Use the existing bucket without creating a new one
+  getAllInventory:
+    handler: handlers/inventoryHandler.get_all_inventory
+    events:
+      - httpApi:
+          path: /api/inventory
+          method: get
 
 custom:
   prune:
