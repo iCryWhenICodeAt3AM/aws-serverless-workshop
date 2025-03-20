@@ -8,6 +8,9 @@ from boto3.dynamodb.conditions import Key
 dynamodb = boto3.resource('dynamodb')
 cart_table = dynamodb.Table('user_carts_rey')
 inventory_table = dynamodb.Table(os.getenv('PRODUCTS_INVENTORY_TABLE'))
+orders_table = dynamodb.Table(os.getenv('PADELIVER_ORDERS_TABLE'))  # New table for orders
+s3 = boto3.client('s3')
+s3_bucket_name = os.getenv('S3_BUCKET_NAME')
 
 def decimal_default(obj):
     if isinstance(obj, Decimal):
@@ -151,3 +154,204 @@ def get_formatted_cart(event, context):
             'Content-Type': 'application/json',
         },
     }
+
+def place_order(event, context):
+    """Handler for placing an order."""
+    user_id = event['pathParameters']['user_id']  # user_id is equivalent to customer_name
+
+    # Fetch the current cart
+    response = cart_table.get_item(Key={'user_id': user_id})
+    cart = response.get('Item', {}).get('cart', [])
+
+    if not cart:
+        return {
+            "statusCode": 400,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"message": "Cart is empty"})
+        }
+
+    try:
+        # Get the current system datetime
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        # Create an order ID
+        order_id = f"ORD-{int(datetime.now().timestamp())}"
+
+        # Prepare the order data
+        order_data = {
+            "order_id": order_id,  # Primary key
+            "customer_name": user_id,  # user_id is stored as customer_name
+            "items": cart,
+            "status": "Preparing",
+            "order_datetime": current_time
+        }
+
+        # Store the order in the orders table
+        orders_table.put_item(Item=order_data)
+
+        # Reduce inventory for each product in the cart
+        for item in cart:
+            inventory_payload = {
+                "product_id": item['product_id'],
+                "quantity": -Decimal(item['quantity']),  # Negative quantity for stock-out
+                "remark": f"Stock-out: Purchase made by {order_id}",
+                "datetime": current_time
+            }
+            inventory_table.put_item(Item=inventory_payload)
+
+        # Clear the cart after placing the order
+        cart_table.update_item(
+            Key={'user_id': user_id},
+            UpdateExpression="SET cart = :empty_cart",
+            ExpressionAttributeValues={':empty_cart': []},
+            ReturnValues="UPDATED_NEW"
+        )
+
+        return {
+            "statusCode": 200,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"message": "Order placed successfully", "order_id": order_id})
+        }
+    except Exception as e:
+        return {
+            "statusCode": 500,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"message": f"Error placing order: {str(e)}"})
+        }
+
+def get_orders(event, context):
+    """Handler for retrieving all orders for a user."""
+    user_id = event['pathParameters']['user_id']  # user_id is equivalent to customer_name
+
+    try:
+        # Query the orders table for the user's orders
+        response = orders_table.query(
+                KeyConditionExpression=Key('customer_name').eq(user_id)
+            )
+
+        orders = response.get('Items', [])
+
+        return {
+            "statusCode": 200,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"orders": orders}, default=decimal_default)
+        }
+    except Exception as e:
+        return {
+            "statusCode": 500,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"message": f"Error retrieving orders: {str(e)}"})
+        }
+
+def get_all_orders(event, context):
+    """Handler for retrieving all orders."""
+    try:
+        # Scan the orders table to fetch all orders
+        response = orders_table.scan()
+        orders = response.get('Items', [])
+
+        return {
+            "statusCode": 200,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"orders": orders}, default=decimal_default)
+        }
+    except Exception as e:
+        return {
+            "statusCode": 500,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"message": f"Error retrieving all orders: {str(e)}"})
+        }
+
+def update_order_status(event, context):
+    """Handler for updating the status of a specific order."""
+    body = json.loads(event['body'])
+    order_id = body.get('order_id')
+    customer_name = body.get('customer_name')  # Equivalent to user_id
+    new_status = body.get('status')
+
+    if not order_id or not customer_name or not new_status:
+        return {
+            "statusCode": 400,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"message": "Missing required fields: order_id, customer_name, or status"})
+        }
+
+    try:
+        # Update the order status in the orders table
+        response = orders_table.update_item(
+            Key={'order_id': order_id},
+            ConditionExpression=Key('customer_name').eq(customer_name),
+            UpdateExpression="SET #status = :new_status",
+            ExpressionAttributeNames={'#status': 'status'},
+            ExpressionAttributeValues={':new_status': new_status},
+            ReturnValues="UPDATED_NEW"
+        )
+
+        return {
+            "statusCode": 200,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"message": "Order status updated successfully", "updatedAttributes": response['Attributes']})
+        }
+    except Exception as e:
+        return {
+            "statusCode": 500,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"message": f"Error updating order status: {str(e)}"})
+        }
+
+def generate_receipt(event, context):
+    """Handler for generating a receipt for a specific order."""
+    body = json.loads(event['body'])
+    order_id = body.get('order_id')
+    customer_name = body.get('customer_name')  # Equivalent to user_id
+
+    if not order_id or not customer_name:
+        return {
+            "statusCode": 400,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"message": "Missing required fields: order_id or customer_name"})
+        }
+
+    try:
+        # Fetch the order from the orders table
+        response = orders_table.get_item(Key={'order_id': order_id})
+        order = response.get('Item')
+
+        if not order or order.get('customer_name') != customer_name:
+            return {
+                "statusCode": 404,
+                "headers": {"Content-Type": "application/json"},
+                "body": json.dumps({"message": "Order not found or does not belong to the customer"})
+            }
+
+        # Generate receipt content
+        receipt_content = f"Order Receipt\n\nOrder ID: {order_id}\nCustomer Name: {customer_name}\n"
+        receipt_content += f"Order Date: {order['order_datetime']}\nStatus: {order['status']}\n\nItems:\n"
+
+        for item in order['items']:
+            receipt_content += f"- {item['quantity']}x {item['item']} @ {item['price']} each\n"
+
+        receipt_content += f"\nTotal Items: {len(order['items'])}\n"
+
+        # Upload the receipt to S3
+        receipt_key = f"receipts/{order_id}.txt"
+        s3.put_object(
+            Bucket=s3_bucket_name,
+            Key=receipt_key,
+            Body=receipt_content,
+            ContentType='text/plain'
+        )
+
+        receipt_url = f"https://{s3_bucket_name}.s3.amazonaws.com/{receipt_key}"
+
+        return {
+            "statusCode": 200,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"message": "Receipt generated successfully", "receipt_url": receipt_url})
+        }
+    except Exception as e:
+        return {
+            "statusCode": 500,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"message": f"Error generating receipt: {str(e)}"})
+        }

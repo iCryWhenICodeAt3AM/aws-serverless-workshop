@@ -15,6 +15,7 @@ provider:
     PRODUCT_NAME_TABLE: ${env:PRODUCT_NAME_TABLE}
     PADELIVER_PRODUCTS_TABLE: ${env:PADELIVER_PRODUCTS_TABLE}
     S3_BUCKET_NAME: ${env:S3_BUCKET_NAME}
+    PADELIVER_ORDERS_TABLE: ${env:PADELIVER_ORDERS_TABLE}  # New environment variable
 
 functions:
   viewProduct:
@@ -71,11 +72,11 @@ functions:
       - httpApi:
           path: /api/padeliver-inventory
           method: post
-  checkout:
-    handler: handlers/cartHandler.checkout
+  placeOrder:
+    handler: handlers/cartHandler.place_order
     events:
       - httpApi:
-          path: /api/cart/{user_id}/checkout
+          path: /api/cart/{user_id}/place-order
           method: post
   getFormattedCart:
     handler: handlers/cartHandler.get_formatted_cart
@@ -129,6 +130,30 @@ functions:
       - httpApi:
           path: /api/inventory
           method: get
+  getOrders:
+    handler: handlers/cartHandler.get_orders
+    events:
+      - httpApi:
+          path: /api/orders/{user_id}
+          method: get
+  getAllOrders:
+    handler: handlers/cartHandler.get_all_orders
+    events:
+      - httpApi:
+          path: /api/orders
+          method: get
+  updateOrderStatus:
+    handler: handlers/cartHandler.update_order_status
+    events:
+      - httpApi:
+          path: /api/orders/update-status
+          method: patch
+  generateReceipt:
+    handler: handlers/cartHandler.generate_receipt
+    events:
+      - httpApi:
+          path: /api/orders/generate-receipt
+          method: post
 
 custom:
   prune:
