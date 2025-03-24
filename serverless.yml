@@ -154,6 +154,18 @@ functions:
       - httpApi:
           path: /api/orders/generate-receipt
           method: post
+  editCartProductQuantity:
+    handler: handlers/cartHandler.edit_cart_product_quantity
+    events:
+      - httpApi:
+          path: /api/cart/{user_id}/edit
+          method: put
+  deleteCartProduct:
+    handler: handlers/cartHandler.delete_cart_product
+    events:
+      - httpApi:
+          path: /api/cart/{user_id}/delete
+          method: delete
 
 custom:
   prune:

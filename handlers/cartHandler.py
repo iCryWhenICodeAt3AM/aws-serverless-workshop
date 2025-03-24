@@ -366,3 +366,86 @@ def generate_receipt(event, context):
             "body": json.dumps({"message": f"Error generating receipt: {str(e)}"})
         }
 
+def edit_cart_product_quantity(event, context):
+    """Edit the quantity of a product in the user's cart."""
+    user_id = event['pathParameters']['user_id']
+    body = json.loads(event['body'])
+    product_id = body.get('product_id')
+    new_quantity = body.get('quantity')
+
+    if not product_id or new_quantity is None or new_quantity < 1:
+        return {
+            'statusCode': 400,
+            'body': json.dumps({"message": "Invalid input: product_id and quantity are required, and quantity must be at least 1."}),
+            'headers': {'Content-Type': 'application/json'}
+        }
+
+    # Fetch the current cart
+    response = cart_table.get_item(Key={'user_id': user_id})
+    cart = response.get('Item', {}).get('cart', [])
+
+    # Find the product in the cart
+    product = next((item for item in cart if item['product_id'] == product_id), None)
+    if not product:
+        return {
+            'statusCode': 404,
+            'body': json.dumps({"message": "Product not found in cart."}),
+            'headers': {'Content-Type': 'application/json'}
+        }
+
+    # Update the product quantity
+    product['quantity'] = Decimal(new_quantity)
+
+    # Save the updated cart
+    cart_table.update_item(
+        Key={'user_id': user_id},
+        UpdateExpression="SET cart = :cart",
+        ExpressionAttributeValues={':cart': cart}
+    )
+
+    return {
+        'statusCode': 200,
+        'body': json.dumps({"message": "Product quantity updated successfully."}),
+        'headers': {'Content-Type': 'application/json'}
+    }
+
+def delete_cart_product(event, context):
+    """Delete a product from the user's cart."""
+    user_id = event['pathParameters']['user_id']
+    body = json.loads(event['body'])
+    product_id = body.get('product_id')
+
+    if not product_id:
+        return {
+            'statusCode': 400,
+            'body': json.dumps({"message": "Invalid input: product_id is required."}),
+            'headers': {'Content-Type': 'application/json'}
+        }
+
+    # Fetch the current cart
+    response = cart_table.get_item(Key={'user_id': user_id})
+    cart = response.get('Item', {}).get('cart', [])
+
+    # Remove the product from the cart
+    updated_cart = [item for item in cart if item['product_id'] != product_id]
+
+    if len(updated_cart) == len(cart):
+        return {
+            'statusCode': 404,
+            'body': json.dumps({"message": "Product not found in cart."}),
+            'headers': {'Content-Type': 'application/json'}
+        }
+
+    # Save the updated cart
+    cart_table.update_item(
+        Key={'user_id': user_id},
+        UpdateExpression="SET cart = :cart",
+        ExpressionAttributeValues={':cart': updated_cart}
+    )
+
+    return {
+        'statusCode': 200,
+        'body': json.dumps({"message": "Product deleted successfully from cart."}),
+        'headers': {'Content-Type': 'application/json'}
+    }
+
