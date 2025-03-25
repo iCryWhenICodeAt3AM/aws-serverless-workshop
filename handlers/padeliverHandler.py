@@ -273,24 +273,32 @@ def get_padeliver_products_with_stock(event, context):
 
 def add_padeliver_product(event, context):
     """Handler for adding a new Pa-deliver product."""
+    logger.info("Received request to add a new product.")
     body = json.loads(event.get("body", "{}"), parse_float=Decimal)
+    logger.info(f"Request body: {body}")
+
     product_id = body.get("product_id")
     item = body.get("item")
     description = body.get("description")
     price = body.get("price")
     brand = body.get("brand")
     category = body.get("category")
+    product_image_url = body.get("product_image_url")
 
     # Validate input
-    if not product_id or not item or not description or not price or not brand or not category:
+    if not product_id or not item or not description or not price or not brand or not category or not product_image_url:
+        logger.error("Validation failed: Missing required fields.")
         return {
             "statusCode": 400,
             "headers": {"Content-Type": "application/json"},
-            "body": json.dumps({"message": "Missing required fields: product_id, item, description, price, brand, or category"})
+            "body": json.dumps({"message": "Missing required fields: product_id, item, description, price, brand, category, or product_image_url"})
         }
+
+    logger.info(f"Validated input: product_id={product_id}, item={item}, brand={brand}, category={category}")
 
     # Check if product_id or item already exists
     if aws_gateway.product_exists(product_id):
+        logger.error(f"Product ID {product_id} already exists.")
         return {
             "statusCode": 400,
             "headers": {"Content-Type": "application/json"},
@@ -299,6 +307,7 @@ def add_padeliver_product(event, context):
 
     existing_product_by_name = aws_gateway.get_product_name(item)
     if existing_product_by_name:
+        logger.error(f"Product name {item} already exists.")
         return {
             "statusCode": 400,
             "headers": {"Content-Type": "application/json"},
@@ -313,16 +322,21 @@ def add_padeliver_product(event, context):
         "price": price,  # Ensure price is stored as a string
         "brand": brand,  # Include brand
         "category": category,  # Include category
+        "product_image_url": product_image_url  # Include product image URL
     }
+
+    logger.info(f"New product data: {new_product}")
 
     try:
         aws_gateway.add_product(new_product)
+        logger.info(f"Product {product_id} added successfully.")
         return {
             "statusCode": 200,
             "headers": {"Content-Type": "application/json"},
             "body": json.dumps({"message": "Product added successfully", "product": new_product})
         }
     except Exception as e:
+        logger.error(f"Error adding product {product_id}: {str(e)}")
         return {
             "statusCode": 500,
             "headers": {"Content-Type": "application/json"},

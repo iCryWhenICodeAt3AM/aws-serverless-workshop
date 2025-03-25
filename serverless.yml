@@ -166,6 +166,18 @@ functions:
       - httpApi:
           path: /api/cart/{user_id}/delete
           method: delete
+  uploadImage:
+    handler: handlers/imageHandler.upload_image
+    events:
+      - httpApi:
+          path: /api/upload-image
+          method: post
+  getBrandImages:
+    handler: handlers/imageHandler.get_brand_images
+    events:
+      - httpApi:
+          path: /api/get-brand-images
+          method: get
 
 custom:
   prune:

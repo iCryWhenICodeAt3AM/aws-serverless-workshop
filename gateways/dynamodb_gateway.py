@@ -2,10 +2,25 @@ from utils.aws_resources import aws_resources, logger
 import json
 from datetime import datetime
 from decimal import Decimal
+from botocore.exceptions import ClientError  # Import for error handling
 
-def save_product(product):
+def save_product(product, product_image_url=None, brand_image_url=None):
     """Insert a single product into DynamoDB."""
-    aws_resources.products_table.put_item(Item=product)
+    if product_image_url:
+        product["product_image_url"] = product_image_url
+    if brand_image_url:
+        product["brand_image_url"] = brand_image_url
+
+    try:
+        aws_resources.products_table.put_item(Item=product)
+    except ClientError as e:
+        logger.error(f"Error adding product {product.get('product_id')}: {e.response['Error']['Message']}")
+        return {"statusCode": 500, "body": json.dumps({"message": f"Error adding product: {e.response['Error']['Message']}"})}
+    except Exception as e:
+        logger.error(f"Unexpected error adding product {product.get('product_id')}: {str(e)}")
+        return {"statusCode": 500, "body": json.dumps({"message": "Unexpected error occurred"})}
+
+    return {"statusCode": 200, "body": json.dumps({"message": "Product added successfully"})}
 
 def scan_products():
     """Retrieve all products from DynamoDB."""

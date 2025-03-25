@@ -359,6 +359,7 @@ def generate_receipt(event, context):
             "headers": {"Content-Type": "application/json"},
             "body": json.dumps({"message": "Receipt generated successfully", "receipt_url": receipt_url})
         }
+    
     except Exception as e:
         return {
             "statusCode": 500,
